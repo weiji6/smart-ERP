@@ -11,7 +11,7 @@
 - 后端采用 Go 标准库 `net/http` 实现 HTTP API。
 - 前端采用原生 HTML/CSS/JavaScript，由 Go 服务直接托管。
 - 规则、财务、生产、订单、市场、AI 顾问逻辑主要位于 `internal/erp`。
-- 年度运营记录与 Q/A 历史建议记录当前使用内存存储。
+- 年度运营记录与 Q/A 历史建议记录支持可选 MySQL 持久化；未配置 MySQL 时使用内存存储。
 - AI 调用采用 OpenAI 兼容 Chat Completions API，并支持本地配置文件。
 
 因此，本报告不再把尚未落地的技术组件描述为已实现，而是明确区分：
@@ -82,7 +82,7 @@ ERP 沙盘模拟经营是一类以企业经营决策为核心的教学或竞赛�
 暂未完整覆盖：
 
 - 多用户登录与权限。
-- 数据库持久化。
+- 多用户级数据库模型和数据迁移管理。
 - 完整自动结账。
 - 完整厂房/生产线状态流转。
 - 真实机器学习模型训练。
@@ -256,7 +256,7 @@ Go net/http 服务
   +-- HTTP API：internal/httpapi
   +-- ERP 规则引擎：internal/erp
   +-- AI 客户端：OpenAI 兼容 Chat Completions
-  +-- 内存存储：年度运营记录、Q/A 历史记录
+  +-- 存储层：可选 MySQL，未配置时回退内存存储
 ```
 
 ### 4.2 分层说明
@@ -266,7 +266,7 @@ Go net/http 服务
 | 前端展示层 | 原生 HTML/CSS/JavaScript | 页面展示、表单录入、API 调用、图表绘制、状态反馈 |
 | HTTP 接口层 | Go `net/http` + `ServeMux` | 路由注册、请求解析、响应输出、静态资源托管 |
 | 业务规则层 | `internal/erp` | ERP 规则计算、现金流、订单、生产、市场、策略、AI Prompt |
-| 存储层 | 内存 Map + Mutex | 年度运营记录、Q/A 历史记录 |
+| 存储层 | MySQL 或内存 Map + Mutex | 年度运营记录、Q/A 历史记录 |
 | AI 接入层 | OpenAI 兼容 Chat Completions | AI 建议生成、状态检查、连通性测试 |
 | 文档规则层 | Markdown 规则文档 | AI Prompt 规则上下文 |
 
@@ -300,7 +300,7 @@ SmartERP
 | --- | --- | --- |
 | Go-Zero 微服务 | Go 标准库单体 HTTP 服务 | 当前版本优先实现核心业务闭环，后续可迁移到 Go-Zero |
 | Vue3 + Element Plus | 原生 HTML/CSS/JavaScript | 降低构建复杂度，便于本地直接运行 |
-| MySQL 持久化 | 内存存储 | 当前用于演示和单机场景，后续应接入数据库 |
+| MySQL 持久化 | 已支持可选 MySQL | 配置 DSN 后自动建表并持久化年度记录和 Q/A 历史 |
 | Redis 缓存 | 未使用 | 当前数据量小，不需要缓存层 |
 | Python FastAPI + XGBoost | 未引入独立模型服务 | 当前使用规则模型和 AI 大模型，后续可扩展训练模型 |
 | WebSocket 实时通信 | 未实现 | 当前交互为 HTTP 请求响应 |
@@ -464,8 +464,10 @@ ApplyDecisionsToState(state CompanyState, decisions []DecisionInput) CompanyStat
 
 当前存储方式：
 
-- 内存 Map。
-- 使用 `sync.RWMutex` 保证并发读写安全。
+- 默认未配置数据库时使用内存 Map。
+- 配置 `config/db.local.json` 或 `MYSQL_DSN` 后使用 MySQL。
+- MySQL 表：`annual_operation_records`。
+- 内存模式使用 `sync.RWMutex` 保证并发读写安全。
 
 ### 5.9 Q/A 历史建议模块
 
@@ -482,7 +484,8 @@ ApplyDecisionsToState(state CompanyState, decisions []DecisionInput) CompanyStat
 
 当前存储方式：
 
-- 内存 Map。
+- 默认未配置数据库时使用内存 Map。
+- 配置 MySQL 后写入 `advisor_qa_records`。
 - 支持按企业查询、限制条数、清空历史。
 
 ### 5.10 AI 顾问模块
@@ -935,14 +938,15 @@ env GOCACHE=/private/tmp/smarterp-go-cache go test ./...
 
 ## 12. 当前系统的不足
 
-### 12.1 数据持久化不足
+### 12.1 数据持久化能力仍需完善
 
-当前年度运营记录和 Q/A 历史使用内存存储，服务重启后数据会丢失。
+当前系统已经支持可选 MySQL 持久化，能够保存年度运营记录和 Q/A 历史建议；未配置 MySQL 时仍使用内存存储。
 
 改进方向：
 
-- 引入 SQLite 或 MySQL。
-- 设计企业、年度记录、订单、贷款、生产线、市场、ISO、AI 建议历史等表。
+- 增加数据库迁移版本管理。
+- 继续扩展企业、订单、贷款、生产线、市场、ISO 等业务表。
+- 增加多用户和多比赛场次隔离。
 - 增加导入导出能力。
 
 ### 12.2 完整结账能力不足
@@ -991,11 +995,12 @@ AI 建议质量受以下因素影响：
 
 ## 13. 后续演进路线
 
-### 13.1 第一阶段：数据持久化
+### 13.1 第一阶段：完善数据库持久化
 
 目标：
 
-- 将内存存储迁移到 SQLite 或 MySQL。
+- 在现有 MySQL 支持基础上补齐完整业务表。
+- 增加数据库迁移版本管理。
 - 保留现有 API，不影响前端调用。
 
 建议表：
@@ -1110,7 +1115,7 @@ AI 建议质量受以下因素影响：
 - 年度数据和 Q/A 历史可记录。
 - 前端页面可在桌面和移动端使用。
 
-与原技术方案相比，当前版本更接近一个可交付的 MVP。后续应优先补齐数据库持久化、完整结账状态机和生产线状态流转，再考虑 Vue3、Go-Zero、MySQL、Redis、XGBoost 等工程化与智能化扩展。
+与原技术方案相比，当前版本更接近一个可交付的 MVP。系统已经补充可选 MySQL 持久化能力，后续应优先完善数据库模型、完整结账状态机和生产线状态流转，再考虑 Vue3、Go-Zero、Redis、XGBoost 等工程化与智能化扩展。
 
 本报告建议将当前系统定位为：
 

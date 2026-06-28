@@ -141,6 +141,71 @@ curl http://localhost:8080/api/v1/ai/status
 curl -X POST http://localhost:8080/api/v1/ai/check
 ```
 
+### MySQL 数据库配置
+
+系统支持可选 MySQL 持久化。未配置 MySQL 时会继续使用本地文件存储；配置成功后，年度运营记录和 AI Q/A 历史建议会写入 MySQL。切换到 MySQL 时，会自动把本地文件里的年度记录导入 MySQL，避免已有报表看起来丢失。
+
+创建数据库和用户示例：
+
+```sql
+CREATE DATABASE smarterp DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'smarterp'@'%' IDENTIFIED BY 'smarterp_password';
+GRANT ALL PRIVILEGES ON smarterp.* TO 'smarterp'@'%';
+FLUSH PRIVILEGES;
+```
+
+复制配置文件：
+
+```bash
+cp config/db.example.json config/db.local.json
+```
+
+编辑 `config/db.local.json`：
+
+```json
+{
+  "driver": "mysql",
+  "dsn": "smarterp:smarterp_password@tcp(127.0.0.1:3306)/smarterp?charset=utf8mb4&parseTime=true&loc=Local",
+  "autoMigrate": true,
+  "maxOpenConns": 10,
+  "maxIdleConns": 5
+}
+```
+
+`config/db.local.json` 已加入 `.gitignore`，不要提交真实数据库密码。也可以用环境变量覆盖：
+
+```bash
+export MYSQL_DSN='smarterp:smarterp_password@tcp(127.0.0.1:3306)/smarterp?charset=utf8mb4&parseTime=true&loc=Local'
+export DB_AUTO_MIGRATE=true
+```
+
+启动服务后检查当前存储模式：
+
+```bash
+curl http://localhost:8080/api/v1/db/status
+```
+
+返回 `storageMode=mysql` 表示已经启用 MySQL；返回 `storageMode=file` 表示仍在使用本地文件存储。配置 MySQL 后服务会自动创建以下表：
+
+- `annual_operation_records`
+- `advisor_qa_records`
+
+### 部署与交叉编译
+
+详细部署说明见 [docs/deployment.md](docs/deployment.md)。已经生成的交叉编译产物位于 `dist/`，完整部署包位于 `dist/packages/`。
+
+常用 Linux 编译命令：
+
+```bash
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o dist/smarterp-linux-amd64 ./cmd/server
+```
+
+部署时不要只复制二进制文件，还需要同时复制 `web/` 和 `config/`。真实部署前主要修改：
+
+- `config/ai.local.json`：AI Key、baseURL、model。
+- `config/db.local.json`：MySQL DSN、连接池、是否自动建表。
+- `ADDR` 环境变量：服务监听地址和端口。
+
 ## API 示例
 
 ### 现金流预测
@@ -275,14 +340,15 @@ curl -X POST http://localhost:8080/api/v1/advisor/decision \
 
 ## 当前边界
 
-- 当前版本先实现核心决策引擎和 HTTP API，没有引入数据库、Redis、Go-Zero 代码生成和 Vue 前端。
+- 当前版本先实现核心决策引擎、HTTP API 和原生 Web 前端，暂未引入 Redis、Go-Zero 代码生成和 Vue 前端。
+- 年度运营记录和 AI Q/A 历史建议已经支持可选 MySQL 持久化；未配置 MySQL 时会回退到内存存储。
 - 市场预测目前是规则兜底估算，不是 XGBoost 模型；等有历史广告和订单数据后，可以接 Python AI 服务替换预测函数。
-- AI 决策顾问当前通过环境变量调用外部 AI API，尚未做对话历史持久化和建议版本管理。
+- AI 决策顾问已经支持读取规则文档、运营记录和历史 Q/A 作为上下文，但建议版本管理仍需后续完善。
 - 策略模拟是轻量确定性模拟，用于比较策略倾向，不等价于完整比赛回放。
 
 ## 后续建议
 
-1. 接入 MySQL，持久化企业状态、订单、贷款、市场与对手数据。
+1. 在现有 MySQL 支持基础上，把企业状态、订单、贷款、市场与对手数据进一步拆成结构化业务表。
 2. 用 Go-Zero 生成 API 层，把当前 `internal/erp` 作为业务核心复用。
-3. 补 Vue3 前端，优先做数据录入、现金流、订单评分、采购计划、策略对比 5 个页面。
+3. 如需更复杂交互，可补 Vue3 前端，优先增强数据录入、现金流、订单评分、采购计划、策略对比 5 个页面。
 4. 累积广告投放和选单结果后，接 Python FastAPI + XGBoost 做市场预测。

@@ -1,28 +1,102 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"smarterp/internal/erp"
 )
 
+const defaultOperationRecordPath = "data/operation_records.json"
+
 type Server struct {
 	mux              *http.ServeMux
-	operationRecords *operationRecordStore
-	advisorHistory   *advisorHistoryStore
+	operationRecords operationRecordRepository
+	advisorHistory   advisorHistoryRepository
+	dbStatus         DBStatus
 }
 
 func NewServer() http.Handler {
+	operationRecords := newOperationRecordStore(defaultOperationRecordPath)
 	s := &Server{
 		mux:              http.NewServeMux(),
-		operationRecords: newOperationRecordStore(),
+		operationRecords: operationRecords,
 		advisorHistory:   newAdvisorHistoryStore(),
+		dbStatus: DBStatus{
+			Enabled:     false,
+			StorageMode: "file",
+			ConfigPath:  defaultOperationRecordPath,
+		},
 	}
+	s.configureStorage()
 	s.routes()
 	return s
+}
+
+func (s *Server) configureStorage() {
+	cfg, enabled := LoadDBConfigFromEnv()
+	s.dbStatus.ConfigPath = cfg.ConfigPath
+	s.dbStatus.ConfigLoaded = cfg.ConfigLoaded
+	s.dbStatus.Driver = cfg.Driver
+	if !enabled {
+		s.dbStatus.ConfigPath = defaultOperationRecordPath
+		s.dbStatus.ConfigLoaded = true
+		return
+	}
+
+	db, err := OpenDB(cfg)
+	if err != nil {
+		s.dbStatus.Error = err.Error()
+		log.Printf("MySQL 数据库连接失败，已回退到本地文件存储: %v", err)
+		return
+	}
+	if cfg.AutoMigrate {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := migrateMySQL(ctx, db); err != nil {
+			s.dbStatus.Error = err.Error()
+			_ = db.Close()
+			log.Printf("MySQL 数据库建表失败，已回退到本地文件存储: %v", err)
+			return
+		}
+	}
+
+	mysqlOperationRecords := newMySQLOperationRecordStore(db)
+	if err := copyOperationRecords(s.operationRecords, mysqlOperationRecords); err != nil {
+		s.dbStatus.Error = err.Error()
+		_ = db.Close()
+		log.Printf("年度记录迁移到 MySQL 失败，已回退到本地文件存储: %v", err)
+		return
+	}
+
+	s.operationRecords = mysqlOperationRecords
+	s.advisorHistory = newMySQLAdvisorHistoryStore(db)
+	s.dbStatus.Enabled = true
+	s.dbStatus.StorageMode = "mysql"
+}
+
+func copyOperationRecords(src, dst operationRecordRepository) error {
+	companies, err := src.Companies()
+	if err != nil {
+		return err
+	}
+	for _, company := range companies {
+		records, err := src.List(company)
+		if err != nil {
+			return err
+		}
+		for _, record := range records {
+			if _, err := dst.Upsert(record); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +125,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/advisor/decision", s.decisionAdvisor)
 	s.mux.HandleFunc("GET /api/v1/ai/status", s.aiStatus)
 	s.mux.HandleFunc("POST /api/v1/ai/check", s.aiCheck)
+	s.mux.HandleFunc("GET /api/v1/db/status", s.dbStatusHandler)
 	s.mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("web/assets"))))
 	s.mux.HandleFunc("GET /", s.index)
 }
@@ -84,11 +159,20 @@ func (s *Server) operationFlow(w http.ResponseWriter, _ *http.Request) {
 
 func (s *Server) listOperationRecords(w http.ResponseWriter, r *http.Request) {
 	company := r.URL.Query().Get("company")
-	records := s.operationRecords.List(company)
+	records, err := s.operationRecords.List(company)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	companies, err := s.operationRecords.Companies()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"records":   records,
 		"analysis":  erp.AnalyzeOperationHistory(records),
-		"companies": s.operationRecords.Companies(),
+		"companies": companies,
 	})
 }
 
@@ -102,8 +186,16 @@ func (s *Server) saveOperationRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	saved := s.operationRecords.Upsert(record)
-	records := s.operationRecords.List(saved.Company)
+	saved, err := s.operationRecords.Upsert(record)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	records, err := s.operationRecords.List(saved.Company)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"record":   saved,
 		"records":  records,
@@ -118,7 +210,11 @@ func (s *Server) deleteOperationRecord(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	records := s.operationRecords.List(company)
+	records, err := s.operationRecords.List(company)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"records":  records,
 		"analysis": erp.AnalyzeOperationHistory(records),
@@ -128,14 +224,22 @@ func (s *Server) deleteOperationRecord(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listAdvisorHistory(w http.ResponseWriter, r *http.Request) {
 	company := r.URL.Query().Get("company")
 	limit := queryInt(r, "limit", 20)
+	records, err := s.advisorHistory.List(company, limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"records": s.advisorHistory.List(company, limit),
+		"records": records,
 	})
 }
 
 func (s *Server) clearAdvisorHistory(w http.ResponseWriter, r *http.Request) {
 	company := r.URL.Query().Get("company")
-	s.advisorHistory.Clear(company)
+	if err := s.advisorHistory.Clear(company); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"records": []erp.AdvisorQARecord{}})
 }
 
@@ -170,6 +274,10 @@ func (s *Server) aiCheck(w http.ResponseWriter, r *http.Request) {
 		"status": status,
 		"sample": sample,
 	})
+}
+
+func (s *Server) dbStatusHandler(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, s.dbStatus)
 }
 
 type stateRequest struct {
@@ -380,11 +488,21 @@ func (s *Server) decisionAdvisor(w http.ResponseWriter, r *http.Request) {
 	}
 	operationRecords := req.OperationRecords
 	if len(operationRecords) == 0 {
-		operationRecords = s.operationRecords.List(req.State.Name)
+		records, err := s.operationRecords.List(req.State.Name)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		operationRecords = records
 	}
 	adviceHistory := req.AdviceHistory
 	if len(adviceHistory) == 0 {
-		adviceHistory = s.advisorHistory.List(req.State.Name, 5)
+		records, err := s.advisorHistory.List(req.State.Name, 5)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		adviceHistory = records
 	}
 	ctx := erp.AdvisorContext{
 		State:            req.State,
@@ -430,7 +548,7 @@ func (s *Server) decisionAdvisor(w http.ResponseWriter, r *http.Request) {
 		resp.Mode = "rule_fallback"
 	}
 
-	resp.QARecord = s.advisorHistory.Add(erp.AdvisorQARecord{
+	qaRecord, err := s.advisorHistory.Add(erp.AdvisorQARecord{
 		Company:  req.State.Name,
 		Year:     req.State.Year,
 		Quarter:  req.State.Quarter,
@@ -441,7 +559,17 @@ func (s *Server) decisionAdvisor(w http.ResponseWriter, r *http.Request) {
 		Mode:     resp.Mode,
 		AIUsed:   resp.AIUsed,
 	})
-	resp.QAHistory = s.advisorHistory.List(req.State.Name, 20)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	resp.QARecord = qaRecord
+	qaHistory, err := s.advisorHistory.List(req.State.Name, 20)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	resp.QAHistory = qaHistory
 
 	writeJSON(w, http.StatusOK, resp)
 }

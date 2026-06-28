@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ERP沙盘智能决策系统</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260627g">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260628c">
   </head>
   <body>
     <div class="shell">
@@ -37,12 +37,17 @@
               <span class="status-dot" id="apiDot"></span>
               <span id="apiStatus">连接中</span>
             </div>
+            <button class="ghost-btn" type="button" id="nextYearBtn">进入下一年</button>
             <button class="ghost-btn" type="button" id="resetBtn">重置样例</button>
             <button class="primary-btn" type="button" id="runAdvisorBtn">生成建议</button>
           </div>
         </header>
 
         <section class="metrics" aria-label="经营指标">
+          <article class="metric metric-year">
+            <span>当前年份</span>
+            <strong id="metricYear">第1年 · Q1</strong>
+          </article>
           <article class="metric">
             <span>现金</span>
             <strong id="metricCash">60W</strong>
@@ -70,7 +75,7 @@
               <div class="form-grid compact">
                 <label>
                   <span>年份</span>
-                  <input id="yearInput" type="number" min="1" max="7" value="1">
+                  <input id="yearInput" class="derived-input" type="number" min="1" max="7" value="1" readonly>
                 </label>
                 <label>
                   <span>季度</span>
@@ -87,19 +92,23 @@
                 </label>
                 <label>
                   <span>权益 W</span>
-                  <input id="equityInput" type="number" min="0" value="60">
+                  <input id="equityInput" class="derived-input" type="number" min="0" value="60" readonly>
                 </label>
                 <label>
                   <span>上年权益 W</span>
-                  <input id="lastEquityInput" type="number" min="0" value="60">
+                  <input id="lastEquityInput" class="derived-input" type="number" min="0" value="60" readonly>
                 </label>
                 <label>
                   <span>长贷余额 W</span>
-                  <input id="longLoanInput" type="number" min="0" value="0">
+                  <input id="longLoanInput" class="derived-input" type="number" min="0" value="0" readonly>
                 </label>
                 <label>
                   <span>短贷余额 W</span>
-                  <input id="shortLoanInput" type="number" min="0" value="0">
+                  <input id="shortLoanInput" class="derived-input" type="number" min="0" value="0" readonly>
+                </label>
+                <label>
+                  <span>可贷余额 W</span>
+                  <input id="availableLoanInput" class="derived-input" type="number" min="0" value="160" readonly>
                 </label>
                 <label>
                   <span>当前流程</span>
@@ -115,12 +124,17 @@
               </div>
               <div class="form-grid compact">
                 <label>
+                  <span>年份</span>
+                  <input id="decisionYear" class="derived-input" type="number" min="1" max="7" value="1" readonly>
+                </label>
+                <label>
                   <span>类型</span>
                   <select id="decisionType">
                     <option value="ad">广告</option>
                     <option value="short_loan">短贷</option>
                     <option value="long_loan">长贷</option>
                     <option value="market_iso">市场/ISO</option>
+                    <option value="factory">厂房</option>
                     <option value="production_line">生产线</option>
                     <option value="material_order">原料订单</option>
                   </select>
@@ -197,6 +211,7 @@
                 <table>
                   <thead>
                     <tr>
+                      <th>年份</th>
                       <th>类型</th>
                       <th>对象</th>
                       <th>金额</th>
@@ -370,6 +385,10 @@
             <canvas id="cashChart" width="960" height="320" aria-label="现金流趋势图"></canvas>
             <div class="form-grid compact finance-input-grid">
               <label>
+                <span>年份</span>
+                <input id="cashFlowYear" class="derived-input" type="number" min="1" max="7" value="1" readonly>
+              </label>
+              <label>
                 <span>季度</span>
                 <select id="cashFlowQuarter"></select>
               </label>
@@ -441,6 +460,10 @@
               </div>
               <div class="form-grid compact">
                 <label>
+                  <span>年份</span>
+                  <input id="factoryYear" class="derived-input" type="number" min="1" max="7" value="1" readonly>
+                </label>
+                <label>
                   <span>厂房编号</span>
                   <input id="factoryIdInput" type="text" value="F1">
                 </label>
@@ -472,6 +495,10 @@
                 <button class="icon-btn" type="button" id="addProductionLineBtn" title="添加生产线">+</button>
               </div>
               <div class="form-grid compact">
+                <label>
+                  <span>年份</span>
+                  <input id="lineYear" class="derived-input" type="number" min="1" max="7" value="1" readonly>
+                </label>
                 <label>
                   <span>生产线编号</span>
                   <input id="lineIdInput" type="text" value="L1">
@@ -570,7 +597,7 @@
               <div class="form-grid compact">
                 <label>
                   <span>年份</span>
-                  <input id="orderYear" type="number" min="1" max="7" value="1">
+                  <input id="orderYear" class="derived-input" type="number" min="1" max="7" value="1" readonly>
                 </label>
                 <label>
                   <span>订单号</span>
@@ -712,6 +739,6 @@
       </tr>
     </template>
 
-    <script src="/assets/app.js?v=20260627g"></script>
+    <script src="/assets/app.js?v=20260628c"></script>
   </body>
 </html>

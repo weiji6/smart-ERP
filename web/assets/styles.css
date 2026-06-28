@@ -259,7 +259,7 @@ h3 {
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -289,6 +289,10 @@ h3 {
 
 .metric:nth-child(4) {
   border-top-color: var(--ok);
+}
+
+.metric:nth-child(5) {
+  border-top-color: var(--warn);
 }
 
 .metric span {
@@ -388,6 +392,22 @@ textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
   background: #ffffff;
+}
+
+input.derived-input,
+input[readonly].derived-input {
+  background: #f1f5f8;
+  color: var(--ink);
+  border-color: #ccd7df;
+  font-weight: 700;
+  cursor: default;
+  box-shadow: none;
+}
+
+input.derived-input:focus {
+  border-color: #ccd7df;
+  box-shadow: none;
+  background: #f1f5f8;
 }
 
 .table-wrap {

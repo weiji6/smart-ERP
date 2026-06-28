@@ -11,41 +11,121 @@ type AnnualOperationRecord struct {
 	Company string `json:"company"`
 	Year    int    `json:"year"`
 
-	OpeningCash    Money `json:"openingCash"`
-	ClosingCash    Money `json:"closingCash"`
-	OpeningEquity  Money `json:"openingEquity"`
-	ClosingEquity  Money `json:"closingEquity"`
-	SalesRevenue   Money `json:"salesRevenue"`
-	NetProfit      Money `json:"netProfit"`
-	IncomeTax      Money `json:"incomeTax"`
-	TotalAssets    Money `json:"totalAssets"`
-	TotalLiability Money `json:"totalLiability"`
+	ComprehensiveExpenseReport ComprehensiveExpenseReport `json:"综合费用表"`
+	ProfitReport               ProfitReport               `json:"利润表"`
+	BalanceSheetReport         BalanceSheetReport         `json:"资产负债表"`
 
-	AdExpense            Money `json:"adExpense"`
-	ComprehensiveExpense Money `json:"comprehensiveExpense"`
-	RnDExpense           Money `json:"rndExpense"`
-	MarketExpense        Money `json:"marketExpense"`
-	ISOExpense           Money `json:"isoExpense"`
-	MaintenanceExpense   Money `json:"maintenanceExpense"`
-	FinancialExpense     Money `json:"financialExpense"`
-	DefaultPenalty       Money `json:"defaultPenalty"`
+	OpeningCash              Money `json:"-"`
+	ClosingCash              Money `json:"-"`
+	OpeningEquity            Money `json:"-"`
+	ClosingEquity            Money `json:"-"`
+	SalesRevenue             Money `json:"-"`
+	DirectCost               Money `json:"-"`
+	GrossProfit              Money `json:"-"`
+	NetProfit                Money `json:"-"`
+	IncomeTax                Money `json:"-"`
+	ProfitBeforeDepreciation Money `json:"-"`
+	Depreciation             Money `json:"-"`
+	ProfitBeforeInterest     Money `json:"-"`
+	ProfitBeforeTax          Money `json:"-"`
+	TotalAssets              Money `json:"-"`
+	TotalLiability           Money `json:"-"`
 
-	LongLoanAdded    Money `json:"longLoanAdded"`
-	ShortLoanAdded   Money `json:"shortLoanAdded"`
-	LongLoanBalance  Money `json:"longLoanBalance"`
-	ShortLoanBalance Money `json:"shortLoanBalance"`
+	AdExpense            Money `json:"-"`
+	ComprehensiveExpense Money `json:"-"`
+	ManagementExpense    Money `json:"-"`
+	RnDExpense           Money `json:"-"`
+	MarketExpense        Money `json:"-"`
+	ISOExpense           Money `json:"-"`
+	MaintenanceExpense   Money `json:"-"`
+	SwitchExpense        Money `json:"-"`
+	RentExpense          Money `json:"-"`
+	InfoExpense          Money `json:"-"`
+	OtherLoss            Money `json:"-"`
+	FinancialExpense     Money `json:"-"`
+	DefaultPenalty       Money `json:"-"`
 
-	Orders            []Order                   `json:"orders,omitempty"`
-	Decisions         []DecisionInput           `json:"decisions,omitempty"`
-	ProductInventory  map[Product]int           `json:"productInventory,omitempty"`
-	MaterialInventory map[Material]int          `json:"materialInventory,omitempty"`
-	RnD               map[Product]RnDProgress   `json:"rnd,omitempty"`
-	Markets           map[Market]MarketProgress `json:"markets,omitempty"`
-	ISO               map[string]ISOProgress    `json:"iso,omitempty"`
-	ProductionLines   []ProductionLine          `json:"productionLines,omitempty"`
+	LongLoanAdded    Money `json:"-"`
+	ShortLoanAdded   Money `json:"-"`
+	LongLoanBalance  Money `json:"-"`
+	ShortLoanBalance Money `json:"-"`
+	IncomeTaxPayable Money `json:"-"`
+	ShareCapital     Money `json:"-"`
+	RetainedEarnings Money `json:"-"`
+	OwnerEquityTotal Money `json:"-"`
 
-	KeyEvents string `json:"keyEvents,omitempty"`
-	Review    string `json:"review,omitempty"`
+	Receivables            Money `json:"-"`
+	WorkInProgress         Money `json:"-"`
+	FinishedGoods          Money `json:"-"`
+	RawMaterials           Money `json:"-"`
+	CurrentAssets          Money `json:"-"`
+	FactoryValue           Money `json:"-"`
+	ProductionLineValue    Money `json:"-"`
+	ConstructionInProgress Money `json:"-"`
+	FixedAssets            Money `json:"-"`
+
+	Orders            []Order                   `json:"-"`
+	Decisions         []DecisionInput           `json:"-"`
+	ProductInventory  map[Product]int           `json:"-"`
+	MaterialInventory map[Material]int          `json:"-"`
+	RnD               map[Product]RnDProgress   `json:"-"`
+	Markets           map[Market]MarketProgress `json:"-"`
+	ISO               map[string]ISOProgress    `json:"-"`
+	ProductionLines   []ProductionLine          `json:"-"`
+
+	KeyEvents string `json:"-"`
+	Review    string `json:"-"`
+}
+
+type ComprehensiveExpenseReport struct {
+	ManagementFee           Money `json:"管理费"`
+	AdvertisingFee          Money `json:"广告费"`
+	EquipmentMaintenanceFee Money `json:"设备维护费"`
+	TransferFee             Money `json:"转产费"`
+	Rent                    Money `json:"租金"`
+	MarketAccessDevelopment Money `json:"市场准入开拓"`
+	ProductDevelopment      Money `json:"产品研发"`
+	ISOCertification        Money `json:"ISO 认证资格"`
+	InformationFee          Money `json:"信息费"`
+	Other                   Money `json:"其他"`
+	Total                   Money `json:"合计"`
+}
+
+type ProfitReport struct {
+	SalesRevenue             Money `json:"销售收入"`
+	DirectCost               Money `json:"直接成本"`
+	GrossProfit              Money `json:"毛利"`
+	ComprehensiveExpense     Money `json:"综合费用"`
+	ProfitBeforeDepreciation Money `json:"折旧前利润"`
+	Depreciation             Money `json:"折旧"`
+	ProfitBeforeInterest     Money `json:"支付利息前利润"`
+	FinancialExpense         Money `json:"财务费用"`
+	ProfitBeforeTax          Money `json:"税前利润"`
+	IncomeTax                Money `json:"所得税"`
+	AnnualNetProfit          Money `json:"年度净利润"`
+}
+
+type BalanceSheetReport struct {
+	Cash                    Money `json:"现金"`
+	Receivable              Money `json:"应收款"`
+	WorkInProgress          Money `json:"在制品"`
+	FinishedGoods           Money `json:"产成品"`
+	RawMaterials            Money `json:"原材料"`
+	CurrentAssetsTotal      Money `json:"流动资产合计"`
+	Factory                 Money `json:"厂房"`
+	ProductionLine          Money `json:"生产线"`
+	ConstructionInProgress  Money `json:"在建工程"`
+	FixedAssetsTotal        Money `json:"固定资产合计"`
+	AssetsTotal             Money `json:"资产总计"`
+	LongTermLiability       Money `json:"长期负债"`
+	ShortTermLiability      Money `json:"短期负债"`
+	IncomeTaxPayable        Money `json:"应交所得税"`
+	LiabilityTotal          Money `json:"负债合计"`
+	ShareCapital            Money `json:"股东资本"`
+	RetainedEarnings        Money `json:"利润留存"`
+	AnnualNetProfit         Money `json:"年度净利"`
+	OwnerEquityTotal        Money `json:"所有者权益合计"`
+	LiabilityAndEquityTotal Money `json:"负债和所有者权益总计"`
 }
 
 type OperationHistoryAnalysis struct {
@@ -65,6 +145,7 @@ func NormalizeAnnualRecord(record *AnnualOperationRecord) {
 	if record.Company == "" {
 		record.Company = "默认企业"
 	}
+	normalizeAnnualReportFields(record)
 	if record.ProductInventory == nil {
 		record.ProductInventory = map[Product]int{}
 	}
@@ -79,6 +160,131 @@ func NormalizeAnnualRecord(record *AnnualOperationRecord) {
 	}
 	if record.ISO == nil {
 		record.ISO = map[string]ISOProgress{}
+	}
+}
+
+func normalizeAnnualReportFields(record *AnnualOperationRecord) {
+	if record.ComprehensiveExpenseReport == (ComprehensiveExpenseReport{}) {
+		record.ComprehensiveExpenseReport = ComprehensiveExpenseReport{
+			ManagementFee:           record.ManagementExpense,
+			AdvertisingFee:          record.AdExpense,
+			EquipmentMaintenanceFee: record.MaintenanceExpense,
+			TransferFee:             record.SwitchExpense,
+			Rent:                    record.RentExpense,
+			MarketAccessDevelopment: record.MarketExpense,
+			ProductDevelopment:      record.RnDExpense,
+			ISOCertification:        record.ISOExpense,
+			InformationFee:          record.InfoExpense,
+			Other:                   record.OtherLoss,
+			Total:                   record.ComprehensiveExpense,
+		}
+	}
+	if record.ProfitReport == (ProfitReport{}) {
+		record.ProfitReport = ProfitReport{
+			SalesRevenue:             record.SalesRevenue,
+			DirectCost:               record.DirectCost,
+			GrossProfit:              record.GrossProfit,
+			ComprehensiveExpense:     record.ComprehensiveExpense,
+			ProfitBeforeDepreciation: record.ProfitBeforeDepreciation,
+			Depreciation:             record.Depreciation,
+			ProfitBeforeInterest:     record.ProfitBeforeInterest,
+			FinancialExpense:         record.FinancialExpense,
+			ProfitBeforeTax:          record.ProfitBeforeTax,
+			IncomeTax:                record.IncomeTax,
+			AnnualNetProfit:          record.NetProfit,
+		}
+	}
+	if record.BalanceSheetReport == (BalanceSheetReport{}) {
+		ownerEquityTotal := record.OwnerEquityTotal
+		if ownerEquityTotal == 0 {
+			ownerEquityTotal = record.ClosingEquity
+		}
+		liabilityTotal := record.TotalLiability
+		if liabilityTotal == 0 {
+			liabilityTotal = record.LongLoanBalance + record.ShortLoanBalance
+		}
+		record.BalanceSheetReport = BalanceSheetReport{
+			Cash:                    record.ClosingCash,
+			Receivable:              record.Receivables,
+			WorkInProgress:          record.WorkInProgress,
+			FinishedGoods:           record.FinishedGoods,
+			RawMaterials:            record.RawMaterials,
+			CurrentAssetsTotal:      record.CurrentAssets,
+			Factory:                 record.FactoryValue,
+			ProductionLine:          record.ProductionLineValue,
+			ConstructionInProgress:  record.ConstructionInProgress,
+			FixedAssetsTotal:        record.FixedAssets,
+			AssetsTotal:             record.TotalAssets,
+			LongTermLiability:       record.LongLoanBalance,
+			ShortTermLiability:      record.ShortLoanBalance,
+			IncomeTaxPayable:        record.IncomeTaxPayable,
+			LiabilityTotal:          liabilityTotal,
+			ShareCapital:            record.ShareCapital,
+			RetainedEarnings:        record.RetainedEarnings,
+			AnnualNetProfit:         record.NetProfit,
+			OwnerEquityTotal:        ownerEquityTotal,
+			LiabilityAndEquityTotal: record.TotalAssets,
+		}
+	}
+
+	expense := record.ComprehensiveExpenseReport
+	record.ManagementExpense = expense.ManagementFee
+	record.AdExpense = expense.AdvertisingFee
+	record.MaintenanceExpense = expense.EquipmentMaintenanceFee
+	record.SwitchExpense = expense.TransferFee
+	record.RentExpense = expense.Rent
+	record.MarketExpense = expense.MarketAccessDevelopment
+	record.RnDExpense = expense.ProductDevelopment
+	record.ISOExpense = expense.ISOCertification
+	record.InfoExpense = expense.InformationFee
+	record.OtherLoss = expense.Other
+	record.ComprehensiveExpense = expense.Total
+
+	profit := record.ProfitReport
+	record.SalesRevenue = profit.SalesRevenue
+	record.DirectCost = profit.DirectCost
+	record.GrossProfit = profit.GrossProfit
+	record.ProfitBeforeDepreciation = profit.ProfitBeforeDepreciation
+	record.Depreciation = profit.Depreciation
+	record.ProfitBeforeInterest = profit.ProfitBeforeInterest
+	record.FinancialExpense = profit.FinancialExpense
+	record.ProfitBeforeTax = profit.ProfitBeforeTax
+	record.IncomeTax = profit.IncomeTax
+	record.NetProfit = profit.AnnualNetProfit
+	if record.ComprehensiveExpense == 0 {
+		record.ComprehensiveExpense = profit.ComprehensiveExpense
+	}
+	if record.ComprehensiveExpenseReport.Total == 0 {
+		record.ComprehensiveExpenseReport.Total = profit.ComprehensiveExpense
+	}
+
+	balance := record.BalanceSheetReport
+	record.ClosingCash = balance.Cash
+	record.Receivables = balance.Receivable
+	record.WorkInProgress = balance.WorkInProgress
+	record.FinishedGoods = balance.FinishedGoods
+	record.RawMaterials = balance.RawMaterials
+	record.CurrentAssets = balance.CurrentAssetsTotal
+	record.FactoryValue = balance.Factory
+	record.ProductionLineValue = balance.ProductionLine
+	record.ConstructionInProgress = balance.ConstructionInProgress
+	record.FixedAssets = balance.FixedAssetsTotal
+	record.TotalAssets = balance.AssetsTotal
+	record.LongLoanBalance = balance.LongTermLiability
+	record.ShortLoanBalance = balance.ShortTermLiability
+	record.IncomeTaxPayable = balance.IncomeTaxPayable
+	record.TotalLiability = balance.LiabilityTotal
+	record.ShareCapital = balance.ShareCapital
+	record.RetainedEarnings = balance.RetainedEarnings
+	record.OwnerEquityTotal = balance.OwnerEquityTotal
+	if balance.OwnerEquityTotal != 0 {
+		record.ClosingEquity = balance.OwnerEquityTotal
+	}
+	if record.NetProfit == 0 {
+		record.NetProfit = balance.AnnualNetProfit
+	}
+	if record.ProfitReport.AnnualNetProfit == 0 {
+		record.ProfitReport.AnnualNetProfit = balance.AnnualNetProfit
 	}
 }
 
@@ -166,9 +372,10 @@ func FormatOperationHistory(records []AnnualOperationRecord, analysis OperationH
 			analysis.TotalSalesRevenue, analysis.TotalNetProfit, analysis.TotalAdExpense, analysis.AverageAdROI))
 	}
 	for _, record := range items {
-		b.WriteString(fmt.Sprintf("- Y%d：期初现金%dW，年末现金%dW，年末权益%dW，销售%dW，净利%dW，广告%dW，综合费%dW，长贷余额%dW，短贷余额%dW。",
-			record.Year, record.OpeningCash, record.ClosingCash, record.ClosingEquity, record.SalesRevenue, record.NetProfit,
-			record.AdExpense, record.ComprehensiveExpense, record.LongLoanBalance, record.ShortLoanBalance))
+		b.WriteString(fmt.Sprintf("- Y%d：期初现金%dW，年末现金%dW，年末权益%dW，销售%dW，直接成本%dW，毛利%dW，净利%dW，广告%dW，综合费%dW，长贷余额%dW，短贷余额%dW。",
+			record.Year, record.OpeningCash, record.ClosingCash, record.ClosingEquity, record.SalesRevenue,
+			record.DirectCost, record.GrossProfit, record.NetProfit, record.AdExpense, record.ComprehensiveExpense,
+			record.LongLoanBalance, record.ShortLoanBalance))
 		if len(record.Orders) > 0 {
 			b.WriteString(fmt.Sprintf("订单%d张。", len(record.Orders)))
 		}

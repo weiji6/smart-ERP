@@ -3,12 +3,14 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 const API_BASE_URL = window.location.protocol === "file:" ? "http://localhost:8080" : "";
 const RECORD_PAGE_TURN_OUT_MS = 620;
 const RECORD_PAGE_TURN_IN_MS = 760;
+const INITIAL_EQUITY = 60;
+const LOAN_LIMIT_MULTIPLE = 3;
 
 const state = {
   flow: [],
   decisions: [
-    { type: "ad", market: "本地", product: "P2", amount: 6, quantity: 0, note: "本地P2主投" },
-    { type: "short_loan", amount: 20, quantity: 0, note: "保持现金垫" },
+    { type: "ad", year: 1, quarter: 1, market: "本地", product: "P2", amount: 6, quantity: 0, note: "本地P2主投" },
+    { type: "short_loan", year: 1, quarter: 1, amount: 20, quantity: 0, note: "保持现金垫" },
   ],
   orders: [
     { id: "A", year: 1, market: "本地", product: "P2", quantity: 2, totalPrice: 18, deliveryQuarter: 2, paymentPeriod: 1, isoRequired: "", deliveryTime: "Y1Q2", collectionTime: "Y1Q3" },
@@ -72,9 +74,13 @@ const decisionFormConfig = {
     fields: ["market", "isoType", "amount", "note"],
     defaults: { market: "国内", isoType: "", amount: 1, quantity: 0, note: "市场开拓或ISO认证" },
   },
+  factory: {
+    fields: ["factoryType", "amount", "quantity", "note"],
+    defaults: { factoryType: "大厂房", amount: 5, quantity: 1, note: "厂房租用或购买" },
+  },
   production_line: {
-    fields: ["lineType", "product", "factoryType", "amount", "quantity", "note"],
-    defaults: { lineType: "自动线", product: "P2", factoryType: "", amount: 15, quantity: 1, note: "生产线建设或调整" },
+    fields: ["lineType", "product", "amount", "quantity", "note"],
+    defaults: { lineType: "自动线", product: "P2", amount: 15, quantity: 1, note: "生产线建设或调整" },
   },
   material_order: {
     fields: ["material", "quantity", "amount", "note"],
@@ -83,18 +89,17 @@ const decisionFormConfig = {
 };
 
 function currentCompanyState() {
-  const longLoanBalance = numberValue("#longLoanInput");
-  const shortLoanBalance = numberValue("#shortLoanInput");
+  const derived = deriveCompanyState();
   const decisionCashPlans = buildDecisionCashPlans();
   return {
     name: $("#recordCompany")?.value.trim() || "默认企业",
-    year: numberValue("#yearInput"),
+    year: currentYear(),
     quarter: numberValue("#quarterInput"),
     cash: numberValue("#cashInput"),
-    equity: numberValue("#equityInput"),
-    lastYearEquity: numberValue("#lastEquityInput"),
-    longLoans: longLoanBalance > 0 ? [{ id: "L-current", type: "long", principal: longLoanBalance }] : [],
-    shortLoans: shortLoanBalance > 0 ? [{ id: "S-current", type: "short", principal: shortLoanBalance }] : [],
+    equity: derived.equity,
+    lastYearEquity: derived.lastYearEquity,
+    longLoans: derived.baseLongLoanBalance > 0 ? [{ id: "L-base", type: "long", principal: derived.baseLongLoanBalance }] : [],
+    shortLoans: derived.baseShortLoanBalance > 0 ? [{ id: "S-base", type: "short", principal: derived.baseShortLoanBalance }] : [],
     rnd: productReady,
     markets: marketReady,
     materialInventory: { R1: 0, R2: 0, R3: 0, R4: 0 },
@@ -106,6 +111,61 @@ function currentCompanyState() {
     plannedExpenses: decisionCashPlans.plannedExpenses,
     receivables: decisionCashPlans.receivables,
   };
+}
+
+function currentYear() {
+  return numberValue("#yearInput") || 1;
+}
+
+function deriveCompanyState() {
+  const year = currentYear();
+  const currentRecord = annualRecordForYear(year);
+  const previousRecord = annualRecordForYear(year - 1) || latestAnnualRecordBefore(year);
+  const equity = recordBalanceValue(currentRecord, "所有者权益合计")
+    || recordBalanceValue(previousRecord, "所有者权益合计")
+    || INITIAL_EQUITY;
+  const lastYearEquity = recordBalanceValue(previousRecord, "所有者权益合计") || INITIAL_EQUITY;
+  const baseLongLoanBalance = recordBalanceValue(previousRecord, "长期负债");
+  const baseShortLoanBalance = recordBalanceValue(previousRecord, "短期负债");
+  const currentYearLongLoan = plannedLoanAmount(year, "long_loan");
+  const currentYearShortLoan = plannedLoanAmount(year, "short_loan");
+  const usedLoan = baseLongLoanBalance + baseShortLoanBalance + currentYearLongLoan + currentYearShortLoan;
+  const loanLimit = lastYearEquity * LOAN_LIMIT_MULTIPLE;
+  return {
+    year,
+    equity,
+    lastYearEquity,
+    baseLongLoanBalance,
+    baseShortLoanBalance,
+    currentYearLongLoan,
+    currentYearShortLoan,
+    longLoanBalance: baseLongLoanBalance + currentYearLongLoan,
+    shortLoanBalance: baseShortLoanBalance + currentYearShortLoan,
+    loanLimit,
+    loanAvailable: Math.max(0, loanLimit - usedLoan),
+  };
+}
+
+function annualRecordForYear(year) {
+  return state.operationRecords.find((record) => Number(record.year || 0) === Number(year));
+}
+
+function latestAnnualRecordBefore(year) {
+  return [...state.operationRecords]
+    .filter((record) => Number(record.year || 0) < Number(year))
+    .sort((a, b) => Number(b.year || 0) - Number(a.year || 0))[0];
+}
+
+function recordBalanceValue(record, fieldName) {
+  const value = record?.["资产负债表"]?.[fieldName];
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function plannedLoanAmount(year, type) {
+  return state.decisions
+    .filter((item) => Number(item.year || 1) === Number(year) && item.type === type)
+    .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 }
 
 function buildDecisionCashPlans() {
@@ -130,9 +190,9 @@ function numberValue(selector) {
 }
 
 function calcLoanAvailable(company) {
-  const usedLong = (company.longLoans || []).reduce((sum, item) => sum + Number(item.principal || 0), 0);
-  const usedShort = (company.shortLoans || []).reduce((sum, item) => sum + Number(item.principal || 0), 0);
-  return Math.max(0, Number(company.lastYearEquity || 0) * 3 - usedLong - usedShort - calcPlannedLoanAmount());
+  const derived = deriveCompanyState();
+  return Math.max(0, Number(company?.lastYearEquity || derived.lastYearEquity || 0) * LOAN_LIMIT_MULTIPLE
+    - derived.baseLongLoanBalance - derived.baseShortLoanBalance - derived.currentYearLongLoan - derived.currentYearShortLoan);
 }
 
 function calcPlannedLoanAmount() {
@@ -143,9 +203,21 @@ function calcPlannedLoanAmount() {
 
 function renderCompanyMetrics() {
   const company = currentCompanyState();
+  const derived = deriveCompanyState();
+  setNumberValue("#equityInput", derived.equity);
+  setNumberValue("#lastEquityInput", derived.lastYearEquity);
+  setNumberValue("#longLoanInput", derived.longLoanBalance);
+  setNumberValue("#shortLoanInput", derived.shortLoanBalance);
+  setNumberValue("#availableLoanInput", derived.loanAvailable);
+  syncCurrentYearFields();
+  $("#metricYear").textContent = currentPeriodLabel();
   $("#metricCash").textContent = money(company.cash);
-  $("#metricEquity").textContent = money(company.equity);
-  $("#metricLoan").textContent = money(calcLoanAvailable(company));
+  $("#metricEquity").textContent = money(derived.equity);
+  $("#metricLoan").textContent = money(derived.loanAvailable);
+}
+
+function currentPeriodLabel() {
+  return `第${currentYear()}年 · Q${numberValue("#quarterInput") || 1}`;
 }
 
 async function api(path, options = {}) {
@@ -213,7 +285,7 @@ function renderSystemStatus() {
   } else if (db.storageMode === "mysql") {
     parts.push("存储MySQL");
   } else {
-    parts.push("存储内存");
+    parts.push("存储文件");
   }
 
   if (ai.model) {
@@ -246,6 +318,7 @@ async function loadOperationRecords() {
   state.operationRecords = data.records || [];
   state.historyAnalysis = data.analysis || null;
   renderOperationRecords();
+  renderCompanyMetrics();
 }
 
 async function loadAdvisorHistory() {
@@ -288,11 +361,12 @@ function renderFlow() {
 function renderDecisions() {
   const rows = $("#decisionRows");
   if (!state.decisions.length) {
-    rows.innerHTML = emptyRow(6);
+    rows.innerHTML = emptyRow(7);
     return;
   }
   rows.innerHTML = state.decisions.map((item, index) => `
     <tr>
+      <td>Y${Number(item.year || currentYear())}</td>
       <td>${escapeHtml(decisionName(item.type))}</td>
       <td>${escapeHtml(decisionTarget(item))}</td>
       <td>${money(item.amount)}</td>
@@ -637,7 +711,7 @@ function addDecision() {
   const config = decisionFormConfig[type] || decisionFormConfig.ad;
   const decision = {
     type,
-    year: numberValue("#yearInput"),
+    year: currentYear(),
     quarter: numberValue("#quarterInput"),
   };
 
@@ -673,6 +747,7 @@ function addDecision() {
   state.decisions.push(decision);
   renderDecisions();
   renderCompanyMetrics();
+  refreshCashFlow();
 }
 
 function addOrder() {
@@ -955,6 +1030,42 @@ function syncRecordMirrors() {
       target.value = source.value;
     }
   });
+}
+
+function syncCurrentYearFields() {
+  const year = currentYear();
+  setNumberValue("#decisionYear", year);
+  setNumberValue("#cashFlowYear", year);
+  setNumberValue("#factoryYear", year);
+  setNumberValue("#lineYear", year);
+  setNumberValue("#orderYear", year);
+  setNumberValue("#recordYear", year);
+  refreshOrderTimeFields();
+}
+
+function refreshOrderTimeFields() {
+  if (!$("#orderYear") || !$("#orderDelivery") || !$("#orderPaymentPeriod")) return;
+  const order = {
+    year: numberValue("#orderYear") || currentYear(),
+    deliveryQuarter: numberValue("#orderDelivery") || 1,
+    paymentPeriod: numberValue("#orderPaymentPeriod") || 0,
+  };
+  $("#orderDeliveryTime").value = deliveryTimeLabel(order);
+  $("#orderCollectionTime").value = collectionTimeLabel(order);
+}
+
+function enterNextYear() {
+  const next = Math.min(7, currentYear() + 1);
+  if (next === currentYear()) return;
+  $("#yearInput").value = next;
+  $("#quarterInput").value = 1;
+  syncCurrentYearFields();
+  renderCompanyMetrics();
+  renderCashFlowQuarterSelect();
+  renderProductionQuarterSelects();
+  prefillCashFlowFormFromLatest();
+  refreshCashFlow();
+  updateStepSummary();
 }
 
 async function deleteOperationRecord(year) {
@@ -1248,8 +1359,8 @@ function resetSample() {
   $("#decisionType").value = "ad";
   updateDecisionFormFields();
   state.decisions = [
-    { type: "ad", market: "本地", product: "P2", amount: 6, quantity: 0, note: "本地P2主投" },
-    { type: "short_loan", amount: 20, quantity: 0, note: "保持现金垫" },
+    { type: "ad", year: 1, quarter: 1, market: "本地", product: "P2", amount: 6, quantity: 0, note: "本地P2主投" },
+    { type: "short_loan", year: 1, quarter: 1, amount: 20, quantity: 0, note: "保持现金垫" },
   ];
   state.orders = [
     { id: "A", year: 1, market: "本地", product: "P2", quantity: 2, totalPrice: 18, deliveryQuarter: 2, paymentPeriod: 1, isoRequired: "", deliveryTime: "Y1Q2", collectionTime: "Y1Q3" },
@@ -1330,6 +1441,7 @@ function decisionName(type) {
     short_loan: "短贷",
     long_loan: "长贷",
     market_iso: "市场/ISO",
+    factory: "厂房",
     production_line: "生产线",
     material_order: "原料订单",
   }[type] || type;
@@ -1432,6 +1544,7 @@ function bindEvents() {
   });
   $("#clearQAHistoryBtn").addEventListener("click", clearAdvisorHistory);
   $("#runAdvisorBtn").addEventListener("click", runAdvisor);
+  $("#nextYearBtn").addEventListener("click", enterNextYear);
   $("#resetBtn").addEventListener("click", resetSample);
   bindRecordMirror("#recordComprehensiveExpense", "#recordProfitComprehensiveExpense");
   bindRecordMirror("#recordProfitComprehensiveExpense", "#recordComprehensiveExpense");
@@ -1478,13 +1591,17 @@ function bindEvents() {
     loadOperationRecords();
     loadAdvisorHistory();
   });
-  ["#yearInput", "#quarterInput", "#cashInput", "#equityInput", "#lastEquityInput", "#longLoanInput", "#shortLoanInput"].forEach((selector) => {
+  ["#quarterInput", "#cashInput"].forEach((selector) => {
     $(selector).addEventListener("input", () => {
+      syncCurrentYearFields();
       renderCompanyMetrics();
       renderCashFlowQuarterSelect();
       renderProductionQuarterSelects();
       refreshCashFlow();
     });
+  });
+  ["#orderDelivery", "#orderPaymentPeriod"].forEach((selector) => {
+    $(selector).addEventListener("input", refreshOrderTimeFields);
   });
   ["#cashFlowOpening", "#cashFlowInflow", "#cashFlowOutflow"].forEach((selector) => {
     $(selector).addEventListener("input", syncCashClosingFromFlow);

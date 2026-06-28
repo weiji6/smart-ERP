@@ -94,6 +94,15 @@ type FactoryRule struct {
 	Capacity int         `json:"capacity"`
 }
 
+type FactoryState struct {
+	ID                string      `json:"id"`
+	Type              FactoryType `json:"type"`
+	Ownership         string      `json:"ownership"`
+	Rented            bool        `json:"rented"`
+	Purchased         bool        `json:"purchased"`
+	StartQuarterIndex int         `json:"startQuarterIndex,omitempty"`
+}
+
 type RnDProgress struct {
 	Product  Product `json:"product"`
 	Spent    Money   `json:"spent"`
@@ -116,13 +125,20 @@ type ISOProgress struct {
 }
 
 type ProductionLine struct {
-	ID           string   `json:"id"`
-	Type         LineType `json:"type"`
-	Product      Product  `json:"product"`
-	Built        bool     `json:"built"`
-	BuildStarted int      `json:"buildStartedQuarterIndex"`
-	BuiltAt      int      `json:"builtAtQuarterIndex"`
-	NetValue     Money    `json:"netValue"`
+	ID                       string   `json:"id"`
+	FactoryID                string   `json:"factoryId,omitempty"`
+	Type                     LineType `json:"type"`
+	Product                  Product  `json:"product"`
+	Built                    bool     `json:"built"`
+	Status                   string   `json:"status,omitempty"`
+	BuildStarted             int      `json:"buildStartedQuarterIndex"`
+	BuiltAt                  int      `json:"builtAtQuarterIndex"`
+	NetValue                 Money    `json:"netValue"`
+	IsProducing              bool     `json:"isProducing,omitempty"`
+	ProductionStarted        int      `json:"productionStartedQuarterIndex,omitempty"`
+	ProductionProgress       int      `json:"productionProgress,omitempty"`
+	ProductionTotal          int      `json:"productionTotal,omitempty"`
+	CurrentProductionProduct Product  `json:"currentProductionProduct,omitempty"`
 }
 
 type Loan struct {
@@ -162,6 +178,7 @@ type CompanyState struct {
 	ShortLoans        []Loan                    `json:"shortLoans"`
 	Receivables       []Receivable              `json:"receivables"`
 	Factories         []FactoryType             `json:"factories"`
+	FactoryStates     []FactoryState            `json:"factoryStates,omitempty"`
 	ProductionLines   []ProductionLine          `json:"productionLines"`
 	ProductInventory  map[Product]int           `json:"productInventory"`
 	MaterialInventory map[Material]int          `json:"materialInventory"`
@@ -176,6 +193,7 @@ type CompanyState struct {
 
 type Order struct {
 	ID              string  `json:"id"`
+	Year            int     `json:"year,omitempty"`
 	Market          Market  `json:"market"`
 	Product         Product `json:"product"`
 	Quantity        int     `json:"quantity"`
@@ -183,6 +201,8 @@ type Order struct {
 	DeliveryQuarter int     `json:"deliveryQuarter"`
 	PaymentPeriod   int     `json:"paymentPeriod"`
 	ISORequired     string  `json:"isoRequired,omitempty"`
+	DeliveryTime    string  `json:"deliveryTime,omitempty"`
+	CollectionTime  string  `json:"collectionTime,omitempty"`
 }
 
 func (s CompanyState) CurrentQuarterIndex() int {

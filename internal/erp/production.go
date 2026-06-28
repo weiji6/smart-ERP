@@ -122,9 +122,27 @@ func CalcMaxCapacity(lines []ProductionLine, startQuarterIndex, quarters int) []
 		if !ok || rule.ProductionCycle <= 0 {
 			continue
 		}
+		if lineStatus(line) == "sold" || lineStatus(line) == "switching" {
+			continue
+		}
 		firstAvailable := startQuarterIndex
 		if !line.Built {
 			firstAvailable = line.BuildStarted + rule.InstallQuarters + 1
+		}
+		if line.IsProducing {
+			total := line.ProductionTotal
+			if total <= 0 {
+				total = rule.ProductionCycle
+			}
+			remaining := total - line.ProductionProgress
+			if remaining < 1 {
+				remaining = 1
+			}
+			firstAvailable = maxInt(firstAvailable, startQuarterIndex+remaining-1)
+		}
+		product := line.Product
+		if line.CurrentProductionProduct != "" {
+			product = line.CurrentProductionProduct
 		}
 		for q := startQuarterIndex; q < startQuarterIndex+quarters; q++ {
 			if q < firstAvailable {
@@ -133,10 +151,10 @@ func CalcMaxCapacity(lines []ProductionLine, startQuarterIndex, quarters int) []
 			if (q-firstAvailable+1)%rule.ProductionCycle != 0 {
 				continue
 			}
-			if _, ok := capacity[line.Product]; !ok {
-				capacity[line.Product] = map[int]int{}
+			if _, ok := capacity[product]; !ok {
+				capacity[product] = map[int]int{}
 			}
-			capacity[line.Product][q]++
+			capacity[product][q]++
 		}
 	}
 
@@ -153,6 +171,16 @@ func CalcMaxCapacity(lines []ProductionLine, startQuarterIndex, quarters int) []
 		return items[i].QuarterIndex < items[j].QuarterIndex
 	})
 	return items
+}
+
+func lineStatus(line ProductionLine) string {
+	if line.Status != "" {
+		return line.Status
+	}
+	if line.Built {
+		return "built"
+	}
+	return "building"
 }
 
 func currentQuarter(index int) int {

@@ -163,6 +163,8 @@ func ApplyDecisionsToState(state CompanyState, decisions []DecisionInput) Compan
 			addPlannedExpense(&state, index, "广告费", decision.Amount)
 		case "market_iso":
 			addPlannedExpense(&state, index, "市场/ISO投资", decision.Amount)
+		case "factory":
+			addPlannedExpense(&state, index, "厂房投资", decision.Amount)
 		case "production_line":
 			addPlannedExpense(&state, index, "生产线投资", decision.Amount)
 		case "material_order":

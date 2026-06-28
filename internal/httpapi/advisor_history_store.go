@@ -19,7 +19,7 @@ func newAdvisorHistoryStore() *advisorHistoryStore {
 	return &advisorHistoryStore{records: map[string][]erp.AdvisorQARecord{}}
 }
 
-func (s *advisorHistoryStore) Add(record erp.AdvisorQARecord) erp.AdvisorQARecord {
+func (s *advisorHistoryStore) Add(record erp.AdvisorQARecord) (erp.AdvisorQARecord, error) {
 	if record.Company == "" {
 		record.Company = "默认企业"
 	}
@@ -32,10 +32,10 @@ func (s *advisorHistoryStore) Add(record erp.AdvisorQARecord) erp.AdvisorQARecor
 		record.CreatedAt = time.Now().Format(time.RFC3339)
 	}
 	s.records[record.Company] = append(s.records[record.Company], record)
-	return record
+	return record, nil
 }
 
-func (s *advisorHistoryStore) List(company string, limit int) []erp.AdvisorQARecord {
+func (s *advisorHistoryStore) List(company string, limit int) ([]erp.AdvisorQARecord, error) {
 	if company == "" {
 		company = "默认企业"
 	}
@@ -49,14 +49,15 @@ func (s *advisorHistoryStore) List(company string, limit int) []erp.AdvisorQARec
 	if limit > 0 && len(items) > limit {
 		items = items[:limit]
 	}
-	return items
+	return items, nil
 }
 
-func (s *advisorHistoryStore) Clear(company string) {
+func (s *advisorHistoryStore) Clear(company string) error {
 	if company == "" {
 		company = "默认企业"
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.records, company)
+	return nil
 }

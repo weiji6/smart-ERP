@@ -154,7 +154,12 @@ func (s *Server) rules(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) operationFlow(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"steps": erp.OperationFlow()})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"steps":            erp.OperationFlow(),
+		"years":            erp.AnnualOperationYears(erp.CompetitionYears),
+		"reportTemplate":   erp.AnnualReportTemplate(),
+		"competitionYears": erp.CompetitionYears,
+	})
 }
 
 func (s *Server) listOperationRecords(w http.ResponseWriter, r *http.Request) {

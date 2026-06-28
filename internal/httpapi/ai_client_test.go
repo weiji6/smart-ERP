@@ -38,6 +38,9 @@ func TestNewAIClientFromConfigFile(t *testing.T) {
 	if status.Model != "openai/gpt-4o-mini" {
 		t.Fatalf("Model = %q", status.Model)
 	}
+	if status.TimeoutSeconds != 180 {
+		t.Fatalf("TimeoutSeconds = %d, want 180", status.TimeoutSeconds)
+	}
 	if strings.Contains(status.KeyPreview, "config-key") {
 		t.Fatalf("KeyPreview 泄露了完整 Key: %q", status.KeyPreview)
 	}
@@ -47,7 +50,8 @@ func TestAIEnvOverridesConfigFile(t *testing.T) {
 	configPath := writeAIConfig(t, `{
 		"apiKey": "sk-or-v1-config-key-123456",
 		"baseURL": "https://openrouter.ai/api/v1",
-		"model": "openai/gpt-4o-mini"
+		"model": "openai/gpt-4o-mini",
+		"timeoutSeconds": 60
 	}`)
 	t.Setenv("AI_CONFIG_FILE", configPath)
 	t.Setenv("AI_API_KEY", "sk-env-key-123456")
@@ -55,6 +59,7 @@ func TestAIEnvOverridesConfigFile(t *testing.T) {
 	t.Setenv("AI_API_BASE_URL", "https://api.openai.com/v1")
 	t.Setenv("AI_CHAT_COMPLETIONS_URL", "")
 	t.Setenv("AI_MODEL", "gpt-4o-mini")
+	t.Setenv("AI_TIMEOUT_SECONDS", "240")
 
 	client := NewAIClientFromEnv()
 	status := client.Status()
@@ -67,6 +72,9 @@ func TestAIEnvOverridesConfigFile(t *testing.T) {
 	}
 	if status.Model != "gpt-4o-mini" {
 		t.Fatalf("Model = %q", status.Model)
+	}
+	if status.TimeoutSeconds != 240 {
+		t.Fatalf("TimeoutSeconds = %d, want 240", status.TimeoutSeconds)
 	}
 }
 

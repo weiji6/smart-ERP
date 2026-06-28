@@ -64,17 +64,17 @@ type AnnualOperationRecord struct {
 	ConstructionInProgress Money `json:"-"`
 	FixedAssets            Money `json:"-"`
 
-	Orders            []Order                   `json:"-"`
-	Decisions         []DecisionInput           `json:"-"`
-	ProductInventory  map[Product]int           `json:"-"`
-	MaterialInventory map[Material]int          `json:"-"`
-	RnD               map[Product]RnDProgress   `json:"-"`
-	Markets           map[Market]MarketProgress `json:"-"`
-	ISO               map[string]ISOProgress    `json:"-"`
-	ProductionLines   []ProductionLine          `json:"-"`
+	Orders            []Order                   `json:"orders,omitempty"`
+	Decisions         []DecisionInput           `json:"decisions,omitempty"`
+	ProductInventory  map[Product]int           `json:"productInventory,omitempty"`
+	MaterialInventory map[Material]int          `json:"materialInventory,omitempty"`
+	RnD               map[Product]RnDProgress   `json:"rnd,omitempty"`
+	Markets           map[Market]MarketProgress `json:"markets,omitempty"`
+	ISO               map[string]ISOProgress    `json:"iso,omitempty"`
+	ProductionLines   []ProductionLine          `json:"productionLines,omitempty"`
 
-	KeyEvents string `json:"-"`
-	Review    string `json:"-"`
+	KeyEvents string `json:"keyEvents,omitempty"`
+	Review    string `json:"review,omitempty"`
 }
 
 type ComprehensiveExpenseReport struct {
@@ -368,24 +368,17 @@ func FormatOperationHistory(records []AnnualOperationRecord, analysis OperationH
 	b.WriteString(fmt.Sprintf("已记录 %d 个经营年度，最近年份 Y%d；权益趋势：%s；现金趋势：%s；债务压力：%s。\n",
 		analysis.Years, analysis.LatestYear, analysis.EquityTrend, analysis.CashTrend, analysis.DebtPressure))
 	if analysis.TotalAdExpense > 0 {
-		b.WriteString(fmt.Sprintf("累计销售额 %dW，累计净利润 %dW，累计广告 %dW，平均广告销售转化 %.2f。\n",
+		b.WriteString(fmt.Sprintf("累计销售额 %dW，累计净利润 %dW，累计广告费 %dW，平均广告销售转化 %.2f。\n",
 			analysis.TotalSalesRevenue, analysis.TotalNetProfit, analysis.TotalAdExpense, analysis.AverageAdROI))
 	}
 	for _, record := range items {
-		b.WriteString(fmt.Sprintf("- Y%d：期初现金%dW，年末现金%dW，年末权益%dW，销售%dW，直接成本%dW，毛利%dW，净利%dW，广告%dW，综合费%dW，长贷余额%dW，短贷余额%dW。",
-			record.Year, record.OpeningCash, record.ClosingCash, record.ClosingEquity, record.SalesRevenue,
-			record.DirectCost, record.GrossProfit, record.NetProfit, record.AdExpense, record.ComprehensiveExpense,
-			record.LongLoanBalance, record.ShortLoanBalance))
-		if len(record.Orders) > 0 {
-			b.WriteString(fmt.Sprintf("订单%d张。", len(record.Orders)))
-		}
+		b.WriteString(formatAnnualRecordDetail(record))
 		if record.KeyEvents != "" {
-			b.WriteString("关键事件：" + record.KeyEvents + "。")
+			b.WriteString("关键事件：" + record.KeyEvents + "\n")
 		}
 		if record.Review != "" {
-			b.WriteString("复盘：" + record.Review + "。")
+			b.WriteString("年度复盘：" + record.Review + "\n")
 		}
-		b.WriteByte('\n')
 	}
 	if len(analysis.Findings) > 0 {
 		b.WriteString("历史风险信号：\n")
@@ -394,6 +387,97 @@ func FormatOperationHistory(records []AnnualOperationRecord, analysis OperationH
 		}
 	}
 	return b.String()
+}
+
+func formatAnnualRecordDetail(record AnnualOperationRecord) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("\nY%d 年度账本：\n", record.Year))
+	b.WriteString(fmt.Sprintf("- 摘要：年末现金 %dW，所有者权益 %dW，销售收入 %dW，年度净利润 %dW，长贷 %dW，短贷 %dW。\n",
+		record.ClosingCash, record.OwnerEquityTotal, record.SalesRevenue, record.NetProfit, record.LongLoanBalance, record.ShortLoanBalance))
+	b.WriteString("- 综合费用表：")
+	writeMoneyPairs(&b, []moneyPair{
+		{"管理费", record.ComprehensiveExpenseReport.ManagementFee},
+		{"广告费", record.ComprehensiveExpenseReport.AdvertisingFee},
+		{"设备维护费", record.ComprehensiveExpenseReport.EquipmentMaintenanceFee},
+		{"转产费", record.ComprehensiveExpenseReport.TransferFee},
+		{"租金", record.ComprehensiveExpenseReport.Rent},
+		{"市场准入开拓", record.ComprehensiveExpenseReport.MarketAccessDevelopment},
+		{"产品研发", record.ComprehensiveExpenseReport.ProductDevelopment},
+		{"ISO 认证资格", record.ComprehensiveExpenseReport.ISOCertification},
+		{"信息费", record.ComprehensiveExpenseReport.InformationFee},
+		{"其他", record.ComprehensiveExpenseReport.Other},
+		{"合计", record.ComprehensiveExpenseReport.Total},
+	})
+	b.WriteByte('\n')
+	b.WriteString("- 利润表：")
+	writeMoneyPairs(&b, []moneyPair{
+		{"销售收入", record.ProfitReport.SalesRevenue},
+		{"直接成本", record.ProfitReport.DirectCost},
+		{"毛利", record.ProfitReport.GrossProfit},
+		{"综合费用", record.ProfitReport.ComprehensiveExpense},
+		{"折旧前利润", record.ProfitReport.ProfitBeforeDepreciation},
+		{"折旧", record.ProfitReport.Depreciation},
+		{"支付利息前利润", record.ProfitReport.ProfitBeforeInterest},
+		{"财务费用", record.ProfitReport.FinancialExpense},
+		{"税前利润", record.ProfitReport.ProfitBeforeTax},
+		{"所得税", record.ProfitReport.IncomeTax},
+		{"年度净利润", record.ProfitReport.AnnualNetProfit},
+	})
+	b.WriteByte('\n')
+	b.WriteString("- 资产负债表：")
+	writeMoneyPairs(&b, []moneyPair{
+		{"现金", record.BalanceSheetReport.Cash},
+		{"应收款", record.BalanceSheetReport.Receivable},
+		{"在制品", record.BalanceSheetReport.WorkInProgress},
+		{"产成品", record.BalanceSheetReport.FinishedGoods},
+		{"原材料", record.BalanceSheetReport.RawMaterials},
+		{"流动资产合计", record.BalanceSheetReport.CurrentAssetsTotal},
+		{"厂房", record.BalanceSheetReport.Factory},
+		{"生产线", record.BalanceSheetReport.ProductionLine},
+		{"在建工程", record.BalanceSheetReport.ConstructionInProgress},
+		{"固定资产合计", record.BalanceSheetReport.FixedAssetsTotal},
+		{"资产总计", record.BalanceSheetReport.AssetsTotal},
+		{"长期负债", record.BalanceSheetReport.LongTermLiability},
+		{"短期负债", record.BalanceSheetReport.ShortTermLiability},
+		{"应交所得税", record.BalanceSheetReport.IncomeTaxPayable},
+		{"负债合计", record.BalanceSheetReport.LiabilityTotal},
+		{"股东资本", record.BalanceSheetReport.ShareCapital},
+		{"利润留存", record.BalanceSheetReport.RetainedEarnings},
+		{"年度净利", record.BalanceSheetReport.AnnualNetProfit},
+		{"所有者权益合计", record.BalanceSheetReport.OwnerEquityTotal},
+		{"负债和所有者权益总计", record.BalanceSheetReport.LiabilityAndEquityTotal},
+	})
+	b.WriteByte('\n')
+	if len(record.Decisions) > 0 {
+		b.WriteString("- 本年决策：\n")
+		for _, decision := range record.Decisions {
+			b.WriteString("  ")
+			b.WriteString(formatDecision(decision))
+			b.WriteByte('\n')
+		}
+	}
+	if len(record.Orders) > 0 {
+		b.WriteString("- 本年订单：\n")
+		for _, order := range record.Orders {
+			b.WriteString(fmt.Sprintf("  - 订单=%s，市场=%s，产品=%s，数量=%d，总价=%dW，交付=Q%d，账期=%d。\n",
+				order.ID, order.Market, order.Product, order.Quantity, order.TotalPrice, order.DeliveryQuarter, order.PaymentPeriod))
+		}
+	}
+	return b.String()
+}
+
+type moneyPair struct {
+	name  string
+	value Money
+}
+
+func writeMoneyPairs(b *strings.Builder, pairs []moneyPair) {
+	for i, pair := range pairs {
+		if i > 0 {
+			b.WriteString("；")
+		}
+		b.WriteString(fmt.Sprintf("%s=%dW", pair.name, pair.value))
+	}
 }
 
 func trendLabel(first, last Money) string {

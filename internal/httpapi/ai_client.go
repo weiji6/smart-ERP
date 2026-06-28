@@ -8,17 +8,20 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const defaultAIConfigPath = "config/ai.local.json"
+const defaultAITimeoutSeconds = 180
 
 type AIClient struct {
 	apiKey             string
 	baseURL            string
 	chatCompletionsURL string
 	model              string
+	timeout            time.Duration
 	client             *http.Client
 	keyName            string
 	configPath         string
@@ -30,6 +33,7 @@ type aiFileConfig struct {
 	BaseURL            string `json:"baseURL"`
 	ChatCompletionsURL string `json:"chatCompletionsURL"`
 	Model              string `json:"model"`
+	TimeoutSeconds     int    `json:"timeoutSeconds"`
 }
 
 type aiChatRequest struct {
@@ -75,6 +79,7 @@ func NewAIClientFromEnv() AIClient {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	timeout := timeoutFromSeconds(fileConfig.TimeoutSeconds)
 
 	if v := strings.TrimSpace(os.Getenv("AI_API_KEY")); v != "" {
 		apiKey = v
@@ -92,17 +97,30 @@ func NewAIClientFromEnv() AIClient {
 	if v := strings.TrimSpace(os.Getenv("AI_MODEL")); v != "" {
 		model = v
 	}
+	if v := strings.TrimSpace(os.Getenv("AI_TIMEOUT_SECONDS")); v != "" {
+		if seconds, err := strconv.Atoi(v); err == nil {
+			timeout = timeoutFromSeconds(seconds)
+		}
+	}
 
 	return AIClient{
 		apiKey:             apiKey,
 		baseURL:            strings.TrimRight(baseURL, "/"),
 		chatCompletionsURL: chatCompletionsURL,
 		model:              model,
-		client:             &http.Client{Timeout: 25 * time.Second},
+		timeout:            timeout,
+		client:             &http.Client{Timeout: timeout},
 		keyName:            keyName,
 		configPath:         configPath,
 		configLoaded:       configLoaded,
 	}
+}
+
+func timeoutFromSeconds(seconds int) time.Duration {
+	if seconds <= 0 {
+		seconds = defaultAITimeoutSeconds
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func loadAIFileConfig(path string) (aiFileConfig, bool) {
@@ -133,6 +151,7 @@ type AIStatus struct {
 	BaseURL            string `json:"baseURL"`
 	ChatCompletionsURL string `json:"chatCompletionsURL"`
 	Model              string `json:"model"`
+	TimeoutSeconds     int    `json:"timeoutSeconds"`
 	Warning            string `json:"warning,omitempty"`
 }
 
@@ -145,6 +164,7 @@ func (c AIClient) Status() AIStatus {
 		BaseURL:            c.baseURL,
 		ChatCompletionsURL: endpoint,
 		Model:              c.model,
+		TimeoutSeconds:     int(c.timeout / time.Second),
 	}
 	if c.Enabled() {
 		status.KeySource = c.keyName

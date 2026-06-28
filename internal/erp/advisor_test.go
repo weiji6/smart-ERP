@@ -269,3 +269,76 @@ func TestAIPromptDoesNotEmbedFallbackPlans(t *testing.T) {
 		}
 	}
 }
+
+func TestAnnualOperationYearsMirrorCompetitionCycle(t *testing.T) {
+	years := AnnualOperationYears(CompetitionYears)
+	if len(years) != 7 {
+		t.Fatalf("应生成 7 年年度循环，got %d", len(years))
+	}
+	for _, year := range years {
+		if len(year.Quarters) != 4 {
+			t.Fatalf("每年应包含 4 个季度，Y%d got %d", year.Year, len(year.Quarters))
+		}
+		if len(year.ClosingForm.ComprehensiveExpense) == 0 ||
+			len(year.ClosingForm.Profit) == 0 ||
+			len(year.ClosingForm.BalanceAssets) == 0 ||
+			len(year.ClosingForm.BalanceLiabilities) == 0 {
+			t.Fatalf("年度循环应带完整结账报表模板: %+v", year.ClosingForm)
+		}
+	}
+}
+
+func TestAIPromptIncludesAnnualFormsAndAllDecisions(t *testing.T) {
+	state := DefaultCompanyState()
+	state.Year = 2
+	state.Quarter = 1
+	ctx := AdvisorContext{
+		State:    state,
+		StepCode: "ad_investment",
+		OperationRecords: []AnnualOperationRecord{
+			{
+				Company: "默认企业",
+				Year:    1,
+				ComprehensiveExpenseReport: ComprehensiveExpenseReport{
+					ManagementFee:  4,
+					AdvertisingFee: 6,
+					Total:          10,
+				},
+				ProfitReport: ProfitReport{
+					SalesRevenue:    32,
+					DirectCost:      12,
+					AnnualNetProfit: 8,
+				},
+				BalanceSheetReport: BalanceSheetReport{
+					Cash:             42,
+					RawMaterials:     3,
+					OwnerEquityTotal: 68,
+				},
+				Decisions: []DecisionInput{
+					{Type: "ad", Year: 1, Quarter: 1, Market: MarketLocal, Product: ProductP2, Amount: 6},
+				},
+			},
+		},
+		Decisions: []DecisionInput{
+			{Type: "long_loan", Year: 2, Quarter: 1, Amount: 40},
+		},
+		Question: "第二年怎么推进？",
+	}
+
+	diagnostics := BuildAdvisorDiagnostics(ctx)
+	got := AdvisorAIPrompt(ctx, diagnostics)
+	for _, want := range []string{
+		"年度推进账本",
+		"综合费用表字段",
+		"资产负债表",
+		"管理费=4W",
+		"原材料=3W",
+		"类型=ad",
+		"类型=long_loan",
+		"所有决策",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("AI Prompt 缺少年度表单或决策上下文 %q:\n%s", want, got)
+		}
+	}
+}

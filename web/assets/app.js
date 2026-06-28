@@ -27,6 +27,8 @@ const state = {
     { quarterIndex: 3, openingCash: 72, inflows: 18, outflows: 1, closingCash: 89, note: "Y1Q3 订单回款" },
     { quarterIndex: 4, openingCash: 89, inflows: 0, outflows: 4, closingCash: 85, note: "Y1Q4 年末费用" },
   ],
+  operationYears: [],
+  reportTemplate: null,
   operationRecords: [],
   selectedRecordYear: 1,
   adviceHistory: [],
@@ -308,6 +310,8 @@ function renderSystemStatus() {
 async function loadFlow() {
   const data = await api("/api/v1/operation-flow");
   state.flow = data.steps || [];
+  state.operationYears = data.years || [];
+  state.reportTemplate = data.reportTemplate || null;
   renderFlow();
   renderStepSelect();
 }
@@ -343,6 +347,36 @@ function updateStepSummary() {
 }
 
 function renderFlow() {
+  if (state.operationYears.length) {
+    const yearCount = state.operationYears.length;
+    const stepCount = state.flow.length;
+    $("#flowCount").textContent = `${yearCount} 年 · 每年 ${stepCount} 个节点`;
+    $("#flowList").innerHTML = state.operationYears.map((year) => `
+      <article class="flow-year">
+        <div class="flow-year-head">
+          <strong>第${Number(year.year || 0)}年</strong>
+          <span class="tag">年度循环</span>
+        </div>
+        <div class="flow-quarter-grid">
+          ${(year.quarters || []).map((quarter) => `
+            <section class="flow-quarter">
+              <h3>Q${Number(quarter.quarter || 0)}</h3>
+              <ol>
+                ${(quarter.steps || []).map((step) => `
+                  <li>
+                    <span>${escapeHtml(step.name)}</span>
+                    ${step.onlyQ4 ? '<em>仅Q4</em>' : ""}
+                  </li>
+                `).join("")}
+              </ol>
+            </section>
+          `).join("")}
+        </div>
+      </article>
+    `).join("");
+    return;
+  }
+
   $("#flowCount").textContent = `${state.flow.length} 个节点`;
   $("#flowList").innerHTML = state.flow.map((step) => {
     const q4 = step.onlyQ4 ? `<span class="tag warn">仅Q4</span>` : "";
@@ -935,6 +969,12 @@ function lineStatusTagClass(line) {
   return "danger";
 }
 
+function itemsForYear(items, year) {
+  return items
+    .filter((item) => Number(item.year || year) === Number(year))
+    .map((item) => ({ ...item, year: Number(item.year || year) }));
+}
+
 async function saveOperationRecord() {
   $("#saveRecordBtn").disabled = true;
   $("#saveRecordBtn").textContent = "保存中";
@@ -991,6 +1031,14 @@ async function saveOperationRecord() {
         所有者权益合计: numberValue("#recordOwnerEquityTotal"),
         负债和所有者权益总计: numberValue("#recordLiabilityEquityTotal"),
       },
+      decisions: itemsForYear(state.decisions, numberValue("#recordYear")),
+      orders: itemsForYear(state.orders, numberValue("#recordYear")),
+      productInventory: currentCompanyState().productInventory,
+      materialInventory: currentCompanyState().materialInventory,
+      rnd: currentCompanyState().rnd,
+      markets: currentCompanyState().markets,
+      iso: currentCompanyState().iso || {},
+      productionLines: state.productionLines,
     };
     const data = await api("/api/v1/operation-records", {
       method: "POST",

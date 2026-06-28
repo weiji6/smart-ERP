@@ -611,6 +611,60 @@ tbody tr:last-child td {
   gap: 10px;
 }
 
+.flow-year {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfe;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.flow-year-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.flow-quarter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.flow-quarter {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: #fff;
+}
+
+.flow-quarter h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.flow-quarter ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.flow-quarter li {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.flow-quarter li em {
+  color: var(--danger);
+  font-style: normal;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
 .flow-item {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1132,6 +1186,10 @@ tbody tr:last-child td {
   .form-grid,
   .form-grid.compact,
   .flow-list {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-quarter-grid {
     grid-template-columns: 1fr;
   }
 

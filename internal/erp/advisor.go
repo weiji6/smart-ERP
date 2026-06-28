@@ -299,8 +299,8 @@ func AdvisorPrompt(ctx AdvisorContext, diagnostics AdvisorDiagnostics) string {
 	b.WriteString(fmt.Sprintf("当前流程节点：%s（%s）。说明：%s\n", diagnostics.CurrentStep.Name, diagnostics.CurrentStep.Stage, diagnostics.CurrentStep.Description))
 	b.WriteString(fmt.Sprintf("贷款额度：上限%dW，已用%dW，可用%dW。\n",
 		diagnostics.LoanCapacity.Limit, diagnostics.LoanCapacity.Used, diagnostics.LoanCapacity.Available))
-	b.WriteString("\n年度运营历史：\n")
-	b.WriteString(FormatOperationHistory(ctx.OperationRecords, diagnostics.HistoryAnalysis))
+	b.WriteString("\n年度运营历史、年度推进账本与历史决策：\n")
+	b.WriteString(FormatAnnualLedger(ctx.OperationRecords, ctx.Decisions, ctx.State))
 	b.WriteString("\n历史建议记录：\n")
 	b.WriteString(FormatAdvisorQAHistory(ctx.AdviceHistory))
 	if diagnostics.AdPlan.Relevant {
@@ -394,8 +394,8 @@ func AdvisorAIPrompt(ctx AdvisorContext, diagnostics AdvisorDiagnostics) string 
 	b.WriteString(fmt.Sprintf("贷款额度：上限%dW，已用%dW，可用%dW。\n",
 		diagnostics.LoanCapacity.Limit, diagnostics.LoanCapacity.Used, diagnostics.LoanCapacity.Available))
 
-	b.WriteString("\n年度运营历史：\n")
-	b.WriteString(FormatOperationHistory(ctx.OperationRecords, diagnostics.HistoryAnalysis))
+	b.WriteString("\n年度运营历史、年度推进账本与历史决策：\n")
+	b.WriteString(FormatAnnualLedger(ctx.OperationRecords, ctx.Decisions, ctx.State))
 	b.WriteString("\n历史建议记录：\n")
 	b.WriteString(FormatAdvisorQAHistory(ctx.AdviceHistory))
 

@@ -1,0 +1,7 @@
+{
+  "driver": "mysql",
+  "dsn": "smarterp:smarterp_password@tcp(127.0.0.1:3306)/smarterp?charset=utf8mb4&parseTime=true&loc=Local",
+  "autoMigrate": true,
+  "maxOpenConns": 10,
+  "maxIdleConns": 5
+}

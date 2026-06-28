@@ -1,0 +1,15 @@
+.DS_Store
+*.log
+
+# Local secrets and machine-specific config
+config/*.local.json
+config/*.local.json.bak-*
+
+# Runtime data
+data/*.json
+
+# Build output
+dist/
+/smarterp
+/smarterp.exe
+.gocache/

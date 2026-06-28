@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ERP沙盘智能决策系统</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=20260627g">
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark">ERP</div>
+          <div>
+            <div class="brand-title">智能决策</div>
+            <div class="brand-subtitle">沙盘经营助手</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-item active" type="button" data-view="advisor">决策顾问</button>
+          <button class="nav-item" type="button" data-view="records">年度记录</button>
+          <button class="nav-item" type="button" data-view="flow">运营流程</button>
+          <button class="nav-item" type="button" data-view="finance">现金流</button>
+          <button class="nav-item" type="button" data-view="production">生产状态</button>
+          <button class="nav-item" type="button" data-view="orders">订单与采购</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>ERP沙盘智能决策系统</h1>
+            <p id="stepSummary">加载运营流程中</p>
+          </div>
+          <div class="top-actions">
+            <div class="status-box">
+              <span class="status-dot" id="apiDot"></span>
+              <span id="apiStatus">连接中</span>
+            </div>
+            <button class="ghost-btn" type="button" id="resetBtn">重置样例</button>
+            <button class="primary-btn" type="button" id="runAdvisorBtn">生成建议</button>
+          </div>
+        </header>
+
+        <section class="metrics" aria-label="经营指标">
+          <article class="metric">
+            <span>现金</span>
+            <strong id="metricCash">60W</strong>
+          </article>
+          <article class="metric">
+            <span>权益</span>
+            <strong id="metricEquity">60W</strong>
+          </article>
+          <article class="metric">
+            <span>可贷额度</span>
+            <strong id="metricLoan">-</strong>
+          </article>
+          <article class="metric">
+            <span>顾问模式</span>
+            <strong id="metricMode">规则</strong>
+          </article>
+        </section>
+
+        <section class="view active" id="advisorView">
+          <div class="work-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>企业状态</h2>
+              </div>
+              <div class="form-grid compact">
+                <label>
+                  <span>年份</span>
+                  <input id="yearInput" type="number" min="1" max="7" value="1">
+                </label>
+                <label>
+                  <span>季度</span>
+                  <select id="quarterInput">
+                    <option value="1">Q1</option>
+                    <option value="2">Q2</option>
+                    <option value="3">Q3</option>
+                    <option value="4">Q4</option>
+                  </select>
+                </label>
+                <label>
+                  <span>现金 W</span>
+                  <input id="cashInput" type="number" min="0" value="60">
+                </label>
+                <label>
+                  <span>权益 W</span>
+                  <input id="equityInput" type="number" min="0" value="60">
+                </label>
+                <label>
+                  <span>上年权益 W</span>
+                  <input id="lastEquityInput" type="number" min="0" value="60">
+                </label>
+                <label>
+                  <span>长贷余额 W</span>
+                  <input id="longLoanInput" type="number" min="0" value="0">
+                </label>
+                <label>
+                  <span>短贷余额 W</span>
+                  <input id="shortLoanInput" type="number" min="0" value="0">
+                </label>
+                <label>
+                  <span>当前流程</span>
+                  <select id="stepSelect"></select>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>输入决策</h2>
+                <button class="icon-btn" type="button" id="addDecisionBtn" title="添加决策">+</button>
+              </div>
+              <div class="form-grid compact">
+                <label>
+                  <span>类型</span>
+                  <select id="decisionType">
+                    <option value="ad">广告</option>
+                    <option value="short_loan">短贷</option>
+                    <option value="long_loan">长贷</option>
+                    <option value="market_iso">市场/ISO</option>
+                    <option value="production_line">生产线</option>
+                    <option value="material_order">原料订单</option>
+                  </select>
+                </label>
+                <label data-decision-field="market">
+                  <span>市场</span>
+                  <select id="decisionMarket">
+                    <option value="">无</option>
+                    <option value="本地">本地</option>
+                    <option value="区域">区域</option>
+                    <option value="国内">国内</option>
+                    <option value="亚洲">亚洲</option>
+                    <option value="国际">国际</option>
+                  </select>
+                </label>
+                <label data-decision-field="product">
+                  <span>产品</span>
+                  <select id="decisionProduct">
+                    <option value="">无</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                  </select>
+                </label>
+                <label data-decision-field="material">
+                  <span>原料</span>
+                  <select id="decisionMaterial">
+                    <option value="R1">R1</option>
+                    <option value="R2">R2</option>
+                    <option value="R3">R3</option>
+                    <option value="R4">R4</option>
+                  </select>
+                </label>
+                <label data-decision-field="lineType">
+                  <span>生产线</span>
+                  <select id="decisionLineType">
+                    <option value="手工线">手工线</option>
+                    <option value="自动线">自动线</option>
+                    <option value="柔性线">柔性线</option>
+                    <option value="租赁线">租赁线</option>
+                  </select>
+                </label>
+                <label data-decision-field="factoryType">
+                  <span>厂房</span>
+                  <select id="decisionFactoryType">
+                    <option value="">无</option>
+                    <option value="大厂房">大厂房</option>
+                    <option value="小厂房">小厂房</option>
+                  </select>
+                </label>
+                <label data-decision-field="isoType">
+                  <span>ISO认证</span>
+                  <select id="decisionISOType">
+                    <option value="">无</option>
+                    <option value="ISO9000">ISO9000</option>
+                    <option value="ISO14000">ISO14000</option>
+                  </select>
+                </label>
+                <label data-decision-field="amount">
+                  <span>金额 W</span>
+                  <input id="decisionAmount" type="number" min="0" value="6">
+                </label>
+                <label data-decision-field="quantity">
+                  <span>数量</span>
+                  <input id="decisionQuantity" type="number" min="0" value="0">
+                </label>
+                <label data-decision-field="note" class="wide-field">
+                  <span>备注</span>
+                  <input id="decisionNote" type="text" placeholder="可选">
+                </label>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>类型</th>
+                      <th>对象</th>
+                      <th>金额</th>
+                      <th>数量</th>
+                      <th>说明</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="decisionRows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>AI建议</h2>
+              <div class="mode-pill" id="advisorMode">等待分析</div>
+            </div>
+            <textarea id="questionInput" rows="2">我这样投广告和接单是否稳妥？</textarea>
+            <div class="ai-run-status" id="aiRunStatus">尚未生成本次建议</div>
+            <div class="advice-layout">
+              <div class="advice-box" id="adviceBox">点击“生成建议”查看结果。</div>
+              <div class="risk-list">
+                <h3>规则风险</h3>
+                <ul id="riskList"></ul>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>历史建议记录</h2>
+              <button class="ghost-btn" type="button" id="clearQAHistoryBtn">清空记录</button>
+            </div>
+            <div class="qa-list" id="qaHistoryList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="recordsView">
+          <section class="panel record-report-panel">
+            <div class="panel-head">
+              <h2>年度记录</h2>
+              <button class="primary-btn" type="button" id="saveRecordBtn">保存年度</button>
+            </div>
+
+            <div class="record-storage-bar">
+              <div>
+                <strong>年度财务报表账本</strong>
+                <span id="recordStorageSummary">暂无已保存报表</span>
+              </div>
+              <div class="record-book-actions">
+                <button class="ghost-btn" type="button" id="recordPrevBtn">上一年</button>
+                <div class="record-saved-list" id="recordSavedList"></div>
+                <button class="ghost-btn" type="button" id="recordNextBtn">下一年</button>
+              </div>
+            </div>
+
+            <div class="record-paper">
+              <div class="record-paper-head">
+                <span>第</span>
+                <input id="recordYear" class="record-head-input year" type="number" min="1" max="7" value="1" aria-label="年份">
+                <span>年</span>
+                <span class="record-user-label">用户名:</span>
+                <input id="recordCompany" class="record-head-input user" type="text" value="默认企业" aria-label="用户名">
+              </div>
+
+              <div class="record-top-tables">
+                <div class="record-mini-table-wrap">
+                  <h3>综合费用表</h3>
+                  <table class="record-form-table">
+                    <thead>
+                      <tr>
+                        <th>项　目</th>
+                        <th>金额</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>管理费</td><td><input id="recordManagementExpense" type="number" value="4"></td></tr>
+                      <tr><td>广告费</td><td><input id="recordAdExpense" type="number" value="6"></td></tr>
+                      <tr><td>设备维护费</td><td><input id="recordMaintenanceExpense" type="number" value="2"></td></tr>
+                      <tr><td>转产费</td><td><input id="recordSwitchExpense" type="number" value="0"></td></tr>
+                      <tr><td>租金</td><td><input id="recordRentExpense" type="number" value="0"></td></tr>
+                      <tr><td>市场准入开拓</td><td><input id="recordMarketExpense" type="number" value="1"></td></tr>
+                      <tr><td>产品研发</td><td><input id="recordRnDExpense" type="number" value="2"></td></tr>
+                      <tr><td>ISO 认证资格</td><td><input id="recordISOExpense" type="number" value="0"></td></tr>
+                      <tr><td>信息费</td><td><input id="recordInfoExpense" type="number" value="1"></td></tr>
+                      <tr><td>其他</td><td><input id="recordOtherLoss" type="number" value="0"></td></tr>
+                      <tr class="record-total-row"><td>合　计</td><td><input id="recordComprehensiveExpense" type="number" value="16"></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="record-mini-table-wrap">
+                  <h3>利润表</h3>
+                  <table class="record-form-table">
+                    <thead>
+                      <tr>
+                        <th>项　目</th>
+                        <th>金额</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>销售收入</td><td><input id="recordSalesRevenue" type="number" value="32"></td></tr>
+                      <tr><td>直接成本</td><td><input id="recordDirectCost" type="number" value="12"></td></tr>
+                      <tr><td>毛利</td><td><input id="recordGrossProfit" type="number" value="20"></td></tr>
+                      <tr><td>综合费用</td><td><input id="recordProfitComprehensiveExpense" type="number" value="16"></td></tr>
+                      <tr><td>折旧前利润</td><td><input id="recordProfitBeforeDepreciation" type="number" value="8"></td></tr>
+                      <tr><td>折旧</td><td><input id="recordDepreciation" type="number" value="3"></td></tr>
+                      <tr><td>支付利息前利润</td><td><input id="recordProfitBeforeInterest" type="number" value="5"></td></tr>
+                      <tr><td>财务费用</td><td><input id="recordFinancialExpense" type="number" value="4"></td></tr>
+                      <tr><td>税前利润</td><td><input id="recordProfitBeforeTax" type="number" value="1"></td></tr>
+                      <tr><td>所得税</td><td><input id="recordIncomeTax" type="number" value="0"></td></tr>
+                      <tr class="record-total-row"><td>年度净利润</td><td><input id="recordNetProfit" type="number" value="-2"></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="record-balance-wrap">
+                <h3>资产负债表</h3>
+                <table class="record-form-table record-balance-table">
+                  <thead>
+                    <tr>
+                      <th>项目</th>
+                      <th>金额</th>
+                      <th>项目</th>
+                      <th>金额</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>现金</td><td><input id="recordClosingCash" type="number" value="42"></td><td>长期负债</td><td><input id="recordLongLoanBalance" type="number" value="40"></td></tr>
+                    <tr><td>应收款</td><td><input id="recordReceivables" type="number" value="0"></td><td>短期负债</td><td><input id="recordShortLoanBalance" type="number" value="0"></td></tr>
+                    <tr><td>在制品</td><td><input id="recordWorkInProgress" type="number" value="0"></td><td>应交所得税</td><td><input id="recordIncomeTaxPayable" type="number" value="0"></td></tr>
+                    <tr><td>产成品</td><td><input id="recordFinishedGoods" type="number" value="0"></td><td>——</td><td>—</td></tr>
+                    <tr><td>原材料</td><td><input id="recordRawMaterials" type="number" value="0"></td><td>——</td><td>—</td></tr>
+                    <tr class="record-total-row"><td>流动资产合计</td><td><input id="recordCurrentAssets" type="number" value="42"></td><td>负债合计</td><td><input id="recordTotalLiability" type="number" value="40"></td></tr>
+                    <tr><td>厂房</td><td><input id="recordFactoryValue" type="number" value="40"></td><td>股东资本</td><td><input id="recordShareCapital" type="number" value="60"></td></tr>
+                    <tr><td>生产线</td><td><input id="recordProductionLineValue" type="number" value="15"></td><td>利润留存</td><td><input id="recordRetainedEarnings" type="number" value="0"></td></tr>
+                    <tr><td>在建工程</td><td><input id="recordConstructionInProgress" type="number" value="0"></td><td>年度净利</td><td><input id="recordBalanceNetProfit" type="number" value="-2"></td></tr>
+                    <tr class="record-total-row"><td>固定资产合计</td><td><input id="recordFixedAssets" type="number" value="55"></td><td>所有者权益合计</td><td><input id="recordOwnerEquityTotal" type="number" value="58"></td></tr>
+                    <tr class="record-total-row"><td>资产总计</td><td><input id="recordTotalAssets" type="number" value="98"></td><td>负债和所有者权益总计</td><td><input id="recordLiabilityEquityTotal" type="number" value="98"></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="record-note">
+                注：库存折价拍价，生产线变卖，紧急采购，订单违约记入损失；<br>
+                每年经营结束请将此表交到裁判处核对。
+              </p>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="flowView">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>年度运营流程</h2>
+              <span class="subtle" id="flowCount">0 个节点</span>
+            </div>
+            <div class="flow-list" id="flowList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="financeView">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>现金流走势图</h2>
+              <button class="primary-btn" type="button" id="refreshCashFlowBtn">刷新走势</button>
+            </div>
+            <canvas id="cashChart" width="960" height="320" aria-label="现金流趋势图"></canvas>
+            <div class="form-grid compact finance-input-grid">
+              <label>
+                <span>季度</span>
+                <select id="cashFlowQuarter"></select>
+              </label>
+              <label>
+                <span>期初现金 W</span>
+                <input id="cashFlowOpening" type="number" min="0" value="60">
+              </label>
+              <label>
+                <span>现金流入 W</span>
+                <input id="cashFlowInflow" type="number" min="0" value="0">
+              </label>
+              <label>
+                <span>现金流出 W</span>
+                <input id="cashFlowOutflow" type="number" min="0" value="0">
+              </label>
+              <label>
+                <span>期末现金 W</span>
+                <input id="cashFlowClosing" type="number" min="0" value="60">
+              </label>
+              <label class="wide-field">
+                <span>说明</span>
+                <input id="cashFlowNote" type="text" placeholder="例如：Y1Q1 广告投放后现金余额、Y1Q2 订单回款后现金余额">
+              </label>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" type="button" id="addCashFlowPointBtn">添加季度现金</button>
+              <span class="subtle" id="cashFlowSummary">按实际录入的季度现金余额绘制走势</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>季度</th>
+                    <th>期初现金</th>
+                    <th>流入</th>
+                    <th>流出</th>
+                    <th>期末现金</th>
+                    <th>说明</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="cashFlowPointRows"></tbody>
+              </table>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>季度</th>
+                    <th>期末现金</th>
+                    <th>流入</th>
+                    <th>流出</th>
+                    <th>净流量</th>
+                    <th>预警</th>
+                  </tr>
+                </thead>
+                <tbody id="cashRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="productionView">
+          <div class="work-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>厂房状态</h2>
+                <button class="icon-btn" type="button" id="addFactoryBtn" title="添加厂房">+</button>
+              </div>
+              <div class="form-grid compact">
+                <label>
+                  <span>厂房编号</span>
+                  <input id="factoryIdInput" type="text" value="F1">
+                </label>
+                <label>
+                  <span>厂房类型</span>
+                  <select id="factoryTypeInput">
+                    <option value="大厂房">大厂房</option>
+                    <option value="小厂房">小厂房</option>
+                  </select>
+                </label>
+                <label>
+                  <span>状态</span>
+                  <select id="factoryOwnershipInput">
+                    <option value="租用">租用</option>
+                    <option value="购买">购买</option>
+                  </select>
+                </label>
+                <label>
+                  <span>开始季度</span>
+                  <select id="factoryStartQuarterInput"></select>
+                </label>
+              </div>
+              <div class="factory-board" id="factoryBoard"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>生产线录入</h2>
+                <button class="icon-btn" type="button" id="addProductionLineBtn" title="添加生产线">+</button>
+              </div>
+              <div class="form-grid compact">
+                <label>
+                  <span>生产线编号</span>
+                  <input id="lineIdInput" type="text" value="L1">
+                </label>
+                <label>
+                  <span>所在厂房</span>
+                  <select id="lineFactoryInput"></select>
+                </label>
+                <label>
+                  <span>生产线类型</span>
+                  <select id="lineTypeInput">
+                    <option value="手工线">手工线</option>
+                    <option value="自动线" selected>自动线</option>
+                    <option value="柔性线">柔性线</option>
+                    <option value="租赁线">租赁线</option>
+                  </select>
+                </label>
+                <label>
+                  <span>产品</span>
+                  <select id="lineProductInput">
+                    <option value="P1">P1</option>
+                    <option value="P2" selected>P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                  </select>
+                </label>
+                <label>
+                  <span>状态</span>
+                  <select id="lineStatusInput">
+                    <option value="built">已建成</option>
+                    <option value="building">在建</option>
+                    <option value="switching">转产中</option>
+                    <option value="sold">已出售</option>
+                  </select>
+                </label>
+                <label>
+                  <span>净值 W</span>
+                  <input id="lineNetValueInput" type="number" min="-20" value="15">
+                </label>
+                <label>
+                  <span>建成季度</span>
+                  <select id="lineBuiltAtInput"></select>
+                </label>
+                <label>
+                  <span>生产中</span>
+                  <select id="lineProducingInput">
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                  </select>
+                </label>
+                <label>
+                  <span>生产进度</span>
+                  <input id="lineProgressInput" type="number" min="0" value="1">
+                </label>
+                <label>
+                  <span>总期数</span>
+                  <input id="lineTotalInput" type="number" min="1" value="1">
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>生产状态板</h2>
+              <span class="subtle" id="productionSummary">暂无生产状态</span>
+            </div>
+            <div class="production-board" id="productionBoard"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>生产线</th>
+                    <th>厂房</th>
+                    <th>类型</th>
+                    <th>产品</th>
+                    <th>状态</th>
+                    <th>生产进度</th>
+                    <th>净值</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="productionLineRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="ordersView">
+          <div class="work-grid">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>订单录入</h2>
+                <button class="icon-btn" type="button" id="addOrderBtn" title="添加订单">+</button>
+              </div>
+              <div class="form-grid compact">
+                <label>
+                  <span>年份</span>
+                  <input id="orderYear" type="number" min="1" max="7" value="1">
+                </label>
+                <label>
+                  <span>订单号</span>
+                  <input id="orderId" type="text" value="A">
+                </label>
+                <label>
+                  <span>市场</span>
+                  <select id="orderMarket">
+                    <option value="本地">本地</option>
+                    <option value="区域">区域</option>
+                    <option value="国内">国内</option>
+                    <option value="亚洲">亚洲</option>
+                    <option value="国际">国际</option>
+                  </select>
+                </label>
+                <label>
+                  <span>产品</span>
+                  <select id="orderProduct">
+                    <option value="P1">P1</option>
+                    <option value="P2" selected>P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                  </select>
+                </label>
+                <label>
+                  <span>数量</span>
+                  <input id="orderQuantity" type="number" min="1" value="2">
+                </label>
+                <label>
+                  <span>总价 W</span>
+                  <input id="orderPrice" type="number" min="1" value="18">
+                </label>
+                <label>
+                  <span>交货季</span>
+                  <select id="orderDelivery">
+                    <option value="1">Q1</option>
+                    <option value="2" selected>Q2</option>
+                    <option value="3">Q3</option>
+                    <option value="4">Q4</option>
+                  </select>
+                </label>
+                <label>
+                  <span>账期</span>
+                  <select id="orderPaymentPeriod">
+                    <option value="0">现金</option>
+                    <option value="1" selected>1期</option>
+                    <option value="2">2期</option>
+                    <option value="3">3期</option>
+                    <option value="4">4期</option>
+                  </select>
+                </label>
+                <label>
+                  <span>ISO要求</span>
+                  <select id="orderISORequired">
+                    <option value="">无</option>
+                    <option value="ISO9000">ISO9000</option>
+                    <option value="ISO14000">ISO14000</option>
+                  </select>
+                </label>
+                <label>
+                  <span>交货时间</span>
+                  <input id="orderDeliveryTime" type="text" value="Y1Q2">
+                </label>
+                <label>
+                  <span>收款时间</span>
+                  <input id="orderCollectionTime" type="text" value="Y1Q3">
+                </label>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>订单</th>
+                      <th>年份</th>
+                      <th>市场</th>
+                      <th>产品</th>
+                      <th>数量</th>
+                      <th>总价</th>
+                      <th>交货期</th>
+                      <th>账期</th>
+                      <th>ISO</th>
+                      <th>交货时间</th>
+                      <th>收款时间</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="orderRows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>订单评分</h2>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>订单</th>
+                      <th>可行</th>
+                      <th>评分</th>
+                      <th>利润</th>
+                      <th>原因</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scoreRows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>采购计划</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>原料</th>
+                    <th>数量</th>
+                    <th>下单季</th>
+                    <th>需求季</th>
+                    <th>成本</th>
+                  </tr>
+                </thead>
+                <tbody id="purchaseRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <template id="emptyRowTemplate">
+      <tr>
+        <td colspan="6" class="empty">暂无数据</td>
+      </tr>
+    </template>
+
+    <script src="/assets/app.js?v=20260627g"></script>
+  </body>
+</html>
